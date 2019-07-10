@@ -1,0 +1,4 @@
+importFrom(stats, bw.nrd, cov, dnorm, lm, quantile, rexp, sd, var, wilcox.test, pnorm, approx)
+importFrom(survival, survfit, Surv, coxph)
+
+exportPattern("^[[:alpha:]]+")
