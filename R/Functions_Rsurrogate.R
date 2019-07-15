@@ -746,11 +746,11 @@ R.s.estimate.me = function(sone,szero,yone,yzero,parametric = FALSE, estimator =
 		R.vec.simex.q = 1-est.simex.q/Z.model1
 		
 		#quadratic variance
-		G.gamma.lambda =  function(lam)	{return(matrix(c(1,lam,lam^2,0,0,0,0,0,0,0,0,0,0,0,1,lam,lam^2,0,0,0,0,0,0,0,0,0,0,0,1,lam,lam^2,0,0,0,0,0,0,0,0,0,0,0,1,0,rep(0,10),1), nrow = 11, ncol = 5, byrow = F))}
-		G.gamma.neg1 = G.gamma.lambda(-1)
+		G.gamma.lambda.p.q =  function(lam)	{return(matrix(c(1,lam,lam^2,0,0,0,0,0,0,0,0,0,0,0,1,lam,lam^2,0,0,0,0,0,0,0,0,0,0,0,1,lam,lam^2,0,0,0,0,0,0,0,0,0,0,0,1,0,rep(0,10),1), nrow = 11, ncol = 5, byrow = F))}
+		G.gamma.neg1 = G.gamma.lambda.p.q(-1)
 		S.gamma = c()
 		for(h in 1:length(lambda.vec)){
-			S.gamma = cbind(S.gamma, G.gamma.lambda(lambda.vec[h]))
+			S.gamma = cbind(S.gamma, G.gamma.lambda.p.q(lambda.vec[h]))
 		}
 		D.gamma = S.gamma %*% t(S.gamma)
 		Sigma = solve(A11)%*%C11%*%t(solve(A11))
@@ -801,11 +801,11 @@ R.s.estimate.me = function(sone,szero,yone,yzero,parametric = FALSE, estimator =
 	
 		#variance of nonlinear simex
 		param.nl.vector = c(	alpha_0, alpha_1, alpha_2, alpha_0_star, alpha_1_star, alpha_2_star, alpha_0_starstar, alpha_1_starstar, alpha_2_starstar)
-		G.gamma.lambda =  function(lam){return(matrix(c(1,(alpha_2 + lam)^(-1),-1*alpha_1*(alpha_2 +lam)^(-2),0,0,0,0,0,0,0,0,0,0,0,1,(alpha_2_star + lam)^(-1),-1*alpha_1_star*(alpha_2_star +lam)^(-2),0,0,0,0,0,0,0,0,0,0,0,1, (alpha_2_starstar + lam)^(-1),-1*alpha_1_starstar*(alpha_2_starstar +lam)^(-2),0,0,rep(0,9),1,0, rep(0,10),1), nrow = 11, ncol = 5, byrow = F))}
-		G.gamma.neg1 = G.gamma.lambda(-1)
+		G.gamma.lambda.p.nl =  function(lam){return(matrix(c(1,(alpha_2 + lam)^(-1),-1*alpha_1*(alpha_2 +lam)^(-2),0,0,0,0,0,0,0,0,0,0,0,1,(alpha_2_star + lam)^(-1),-1*alpha_1_star*(alpha_2_star +lam)^(-2),0,0,0,0,0,0,0,0,0,0,0,1, (alpha_2_starstar + lam)^(-1),-1*alpha_1_starstar*(alpha_2_starstar +lam)^(-2),0,0,rep(0,9),1,0, rep(0,10),1), nrow = 11, ncol = 5, byrow = F))}
+		G.gamma.neg1 = G.gamma.lambda.p.nl(-1)
 		S.gamma = c()
 		for(h in 1:length(lambda.vec)){
-			S.gamma = cbind(S.gamma, G.gamma.lambda(lambda.vec[h]))
+			S.gamma = cbind(S.gamma, G.gamma.lambda.p.nl(lambda.vec[h]))
 		}
 		D.gamma = S.gamma %*% t(S.gamma)
 		Sigma = solve(A11)%*%C11%*%t(solve(A11))
@@ -889,11 +889,11 @@ R.s.estimate.me = function(sone,szero,yone,yzero,parametric = FALSE, estimator =
 		deltas.vec.simex.q.NP = est.simex.q
 	
 		#variance of quadratic simex
-		G.gamma.lambda =  function(lam){return(matrix(c(1,lam,lam^2,0,0,0,0,1), nrow = 4, ncol = 2, byrow = F))}
-		G.gamma.neg1 = G.gamma.lambda(-1)
+		G.gamma.lambda.np.q =  function(lam){return(matrix(c(1,lam,lam^2,0,0,0,0,1), nrow = 4, ncol = 2, byrow = F))}
+		G.gamma.neg1 = G.gamma.lambda.np.q(-1)
 		S.gamma = c()
 		for(h in 1:length(lambda.vec)){
-			S.gamma = cbind(S.gamma, G.gamma.lambda(lambda.vec[h]))
+			S.gamma = cbind(S.gamma, G.gamma.lambda.np.q(lambda.vec[h]))
 		}
 		D.gamma = S.gamma %*% t(S.gamma)
 		Sigma = cov(mat.lambda.for.C)
@@ -928,7 +928,7 @@ R.s.estimate.me = function(sone,szero,yone,yzero,parametric = FALSE, estimator =
 		
 		#put all nonlinear in trycatch
 		tryCatch({
-		model.nl = nls(mean.ps ~ a.param + b.param/(c.param+lambda.vec), start = list(a.param=10, b.param=10, c.param = 10), control = nls.control(warnOnly = TRUE, minFactor = 1/100000, maxiter = 1000))
+		model.nl = nls(mean.ps ~ a.param + b.param/(c.param+lambda.vec), start = list(a.param=1, b.param=1, c.param = 1), control = nls.control(warnOnly = TRUE, minFactor = 1/100000, maxiter = 1000))
 		parameters = summary(model.nl)$parameters[,1]
 		alpha_0 = parameters[1]
 		alpha_1 = parameters[2]
@@ -937,11 +937,11 @@ R.s.estimate.me = function(sone,szero,yone,yzero,parametric = FALSE, estimator =
 	
 		#variance of nonlinear simex
 		param.nl.vector = c(	alpha_0, alpha_1, alpha_2)
-		G.gamma.lambda =  function(lam){return(matrix(c(1,(alpha_2 + lam)^(-1),-1*alpha_1*(alpha_2 +lam)^(-2),0,0,0,0,1), nrow = 4, ncol = 2, byrow = F))}
-		G.gamma.neg1 = G.gamma.lambda(-1)
+		G.gamma.lambda.np.nl =  function(lam){return(matrix(c(1,(alpha_2 + lam)^(-1),-1*alpha_1*(alpha_2 +lam)^(-2),0,0,0,0,1), nrow = 4, ncol = 2, byrow = F))}
+		G.gamma.neg1 = G.gamma.lambda.np.nl(-1)
 		S.gamma = c()
 		for(h in 1:length(lambda.vec)){
-			S.gamma = cbind(S.gamma, G.gamma.lambda(lambda.vec[h]))
+			S.gamma = cbind(S.gamma, G.gamma.lambda.np.nl(lambda.vec[h]))
 		}
 		D.gamma = S.gamma %*% t(S.gamma)
 		Sigma = cov(mat.lambda.for.C)
