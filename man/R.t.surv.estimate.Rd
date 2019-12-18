@@ -12,7 +12,7 @@ This function calculates the proportion of treatment effect on the primary outco
 }
 \usage{
 R.t.surv.estimate(xone, xzero, deltaone, deltazero, t, weight.perturb = NULL, 
-landmark, var = FALSE, conf.int = FALSE)
+landmark, var = FALSE, conf.int = FALSE, approx = T)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -52,6 +52,9 @@ TRUE or FALSE; indicates whether a variance estimate for delta is requested, def
   \item{conf.int}{
 %%     ~~Describe \code{var} here~~
 TRUE or FALSE; indicates whether a 95\% confidence interval for delta is requested, default is FALSE.
+}
+  \item{approx}{
+TRUE or FALSE indicating whether an approximation should be used when calculating the probability of censoring; most relevant in settings where the survival time of interest for the primary outcome is greater than the last observed event but before the last censored case, default is TRUE.
 }
 }
 \details{

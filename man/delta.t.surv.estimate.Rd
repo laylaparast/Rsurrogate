@@ -13,7 +13,7 @@ This function calculates the robust estimate of the residual treatment effect ac
 }
 \usage{
 delta.t.surv.estimate(xone, xzero, deltaone, deltazero, t, weight.perturb = NULL,
-landmark)
+landmark, approx = T)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -45,6 +45,9 @@ weights used for perturbation resampling.
   \item{landmark}{
 %%     ~~Describe \code{landmark} here~~
 the landmark time \eqn{t_0} or time of surrogate marker measurement.
+}
+  \item{approx}{
+TRUE or FALSE indicating whether an approximation should be used when calculating the probability of censoring; most relevant in settings where the survival time of interest for the primary outcome is greater than the last observed event but before the last censored case, default is TRUE.
 }
 }
 \details{

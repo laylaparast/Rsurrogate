@@ -12,7 +12,7 @@ This function calculates the augmented version of the proportion of treatment ef
 Aug.R.s.surv.estimate(xone, xzero, deltaone, deltazero, sone, szero, t, 
 weight.perturb = NULL, landmark, extrapolate = FALSE, transform = FALSE, 
 basis.delta.one, basis.delta.zero, basis.delta.s.one = NULL, 
-basis.delta.s.zero = NULL, incremental.value = FALSE)
+basis.delta.s.zero = NULL, incremental.value = FALSE, approx = T)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -77,6 +77,9 @@ either a vector of length \eqn{n_0} or a matrix with \eqn{n_0} rows; this is the
   \item{incremental.value}{
 %%     ~~Describe \code{var} here~~
 TRUE or FALSE; indicates whether the user would like to see the incremental value of the surrogate marker information, default is FALSE.
+}
+  \item{approx}{
+TRUE or FALSE indicating whether an approximation should be used when calculating the probability of censoring; most relevant in settings where the survival time of interest for the primary outcome is greater than the last observed event but before the last censored case, default is TRUE.
 }
 }
 \details{

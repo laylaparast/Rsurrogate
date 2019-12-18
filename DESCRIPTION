@@ -1,8 +1,8 @@
 Package: Rsurrogate
 Type: Package
 Title: Robust Estimation of the Proportion of Treatment Effect Explained by Surrogate Marker Information
-Version: 2.1
-Date: 2019-07-10
+Version: 2.2
+Date: 2019-12-18
 Author: Layla Parast
 Maintainer: Layla Parast <parast@rand.org>
 Description: Provides functions to estimate the proportion of treatment effect on the primary outcome that is explained by the treatment effect on the surrogate marker. 

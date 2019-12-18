@@ -12,7 +12,8 @@ This function calculates the robust estimate of the residual treatment effect ac
 }
 \usage{
 delta.s.surv.estimate(xone, xzero, deltaone, deltazero, sone, szero, t, 
-weight.perturb = NULL, landmark, extrapolate = FALSE, transform = FALSE)
+weight.perturb = NULL, landmark, extrapolate = FALSE, transform = FALSE,
+approx = T)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -61,6 +62,9 @@ TRUE or FALSE; indicates whether the user wants to use extrapolation.
   \item{transform}{
 %%     ~~Describe \code{transform} here~~
 TRUE or FALSE; indicates whether the user wants to use a transformation for the surrogate marker. 
+}
+  \item{approx}{
+TRUE or FALSE indicating whether an approximation should be used when calculating the probability of censoring; most relevant in settings where the survival time of interest for the primary outcome is greater than the last observed event but before the last censored case, default is TRUE.
 }
 }
 \details{

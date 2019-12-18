@@ -12,7 +12,7 @@ This function calculates the treatment effect in the survival setting i.e. the d
 }
 \usage{
 delta.surv.estimate(xone, xzero, deltaone, deltazero, t, var = FALSE, conf.int 
-= FALSE, weight = NULL, weight.perturb = NULL)
+= FALSE, weight = NULL, weight.perturb = NULL, approx = T)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -55,6 +55,9 @@ a \eqn{n_1+n_0} by \eqn{x} matrix of weights where \eqn{n_1 =} sample size in tr
 %%     ~~Describe \code{weight} here~~
 a \eqn{n_1+n_0} by \eqn{x} matrix of weights where \eqn{n_1 =}sample size in treatment group and \eqn{n_0 =} sample size in the control group, default is null; generally used for confidence interval construction and may be supplied by user.
 
+}
+  \item{approx}{
+TRUE or FALSE indicating whether an approximation should be used when calculating the probability of censoring; most relevant in settings where the survival time of interest for the primary outcome is greater than the last observed event but before the last censored case, default is TRUE.
 }
 }
 \details{

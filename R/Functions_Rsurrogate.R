@@ -255,14 +255,14 @@ pred.smooth <-function(zz,zi.one, bw=NULL,y1, weight = NULL) {
  
   }
 
- delta.surv.estimate= function(xone,xzero, deltaone, deltazero, t, var = FALSE, conf.int = FALSE, weight = NULL, weight.perturb = NULL) {
+  delta.surv.estimate= function(xone,xzero, deltaone, deltazero, t, var = FALSE, conf.int = FALSE, weight = NULL, weight.perturb = NULL, approx=T) {
 	if(is.null(weight)){weight = rep(1,length(xone)+length(xzero))}
-	censor1.t = censor.weight(xone, deltaone, t, weight = weight[1:length(xone)])
-	censor0.t = censor.weight(xzero, deltazero, t, weight = weight[(1+length(xone)):(length(xone)+length(xzero))])
+	censor1.t = censor.weight(xone, deltaone, t, weight = weight[1:length(xone)], approx=approx)
+	censor0.t = censor.weight(xzero, deltazero, t, weight = weight[(1+length(xone)):(length(xone)+length(xzero))], approx=approx)
 	delta = sum(1*(xone > t)*weight[1:length(xone)])/sum(weight[1:length(xone)]*censor1.t) - sum(1*(xzero > t)*weight[(1+length(xone)):(length(xone)+length(xzero))])/sum(weight[(1+length(xone)):(length(xone)+length(xzero))]* censor0.t)
 	if(var | conf.int) { 
 		if(is.null(weight.perturb)) {weight.perturb = matrix(rexp(500*(length(xone)+length(xzero)), rate=1), ncol = 500)}
-		delta.p.vec = apply(weight.perturb, 2, function(x) {  	censor1.t.p = censor.weight(xone, deltaone, t, weight = x[1:length(xone)]); censor0.t.p = censor.weight(xzero, deltazero, t, weight = x[(1+length(xone)):(length(xone)+length(xzero))]);
+		delta.p.vec = apply(weight.perturb, 2, function(x) {  	censor1.t.p = censor.weight(xone, deltaone, t, weight = x[1:length(xone)],approx=approx); censor0.t.p = censor.weight(xzero, deltazero, t, weight = x[(1+length(xone)):(length(xone)+length(xzero))],approx=approx);
 sum(1*(xone > t)*x[1:length(xone)])/sum(x[1:length(xone)]*censor1.t) - sum(1*(xzero > t)*x[(1+length(xone)):(length(xone)+length(xzero))])/sum(x[(1+length(xone)):(length(xone)+length(xzero))]* censor0.t)})
 		}
 	if(conf.int){
@@ -276,18 +276,19 @@ sum(1*(xone > t)*x[1:length(xone)])/sum(x[1:length(xone)]*censor1.t) - sum(1*(xz
 	if(conf.int) {return(list("delta" = delta, "delta.var" = var(delta.p.vec), "conf.int.normal" = c(conf.l.normal, conf.u.normal), "conf.int.quantile" = as.vector(c(conf.l.quantile, conf.u.quantile))))}
 }
  
-censor.weight = function(data.x, data.delta, t, weight=NULL) {
+censor.weight = function(data.x, data.delta, t, weight=NULL, approx = T) {
 	if(is.null(weight)) {weight = rep(1,length(data.x))}
 	S.KM = survfit(Surv(data.x,1-data.delta)~1, weights = weight)
-	S.t.KM = approx(S.KM$time,S.KM$surv,t)$y
+	if(approx) {S.t.KM = approx(S.KM$time,S.KM$surv,t)$y}
+	if(!approx) {S.t.KM = summary(S.KM, times = t)$surv}
 	return(S.t.KM)
 }
 
 
 
-delta.s.surv.estimate = function(xone,xzero, deltaone, deltazero, sone, szero, t, weight.perturb = NULL, landmark, extrapolate = FALSE, transform = FALSE) {
+delta.s.surv.estimate = function(xone,xzero, deltaone, deltazero, sone, szero, t, weight.perturb = NULL, landmark, extrapolate = FALSE, transform = FALSE, approx = T) {
 	
-	delta.check = delta.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, conf.int = TRUE)
+	delta.check = delta.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, conf.int = TRUE,approx=approx)
 	if(delta.check$conf.int.quantile[1] < 0 & delta.check$conf.int.quantile[2] > 0 & is.null(weight.perturb)) {print("Warning: it looks like the treatment effect is not significant; may be difficult to interpret the residual treatment effect in this setting")}
 	if(delta.check$delta < 0 & is.null(weight.perturb)) {print("Warning: it looks like you need to switch the treatment groups")}
 	range.1 = range(sone, na.rm = T)
@@ -301,8 +302,8 @@ delta.s.surv.estimate = function(xone,xzero, deltaone, deltazero, sone, szero, t
 	weight.group1 = weight[1:length(xone)]
 	weight.group0 = weight[(1+length(xone)):(length(xone)+length(xzero))]
 	mu.1.s0 = pred.smooth.surv(xone.f=xone[xone>landmark], deltaone.f = deltaone[xone>landmark], sone.f=sone[xone>landmark], szero.one = szero[xzero>landmark], myt=t, weight.pred = weight.group1[xone>landmark], extrapolate = extrapolate, transform = transform)
-	censor0.t = censor.weight(xzero, deltazero, t, weight = weight.group0)
-	censor0.landmark = censor.weight(xzero, deltazero, landmark, weight = weight.group0)
+	censor0.t = censor.weight(xzero, deltazero, t, weight = weight.group0, approx=approx)
+	censor0.landmark = censor.weight(xzero, deltazero, landmark, weight = weight.group0, approx=approx)
 	delta.s = sum(weight.group0[xzero>landmark]*mu.1.s0)/sum(weight.group0*censor0.landmark) - sum(weight.group0*1*(xzero>t))/sum(weight.group0*censor0.t)
 	return(delta.s)
 }
@@ -310,18 +311,18 @@ delta.s.surv.estimate = function(xone,xzero, deltaone, deltazero, sone, szero, t
 
   
 
-R.s.surv.estimate = function(xone,xzero, deltaone, deltazero, sone, szero, t, weight.perturb = NULL, landmark, extrapolate = FALSE, transform = FALSE, conf.int =FALSE, var = FALSE, incremental.value = FALSE) {
-	delta = delta.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t)$delta	
-	delta.s = delta.s.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, sone=sone, szero=szero, t=t, landmark=landmark, extrapolate = extrapolate, transform = transform)
+R.s.surv.estimate = function(xone,xzero, deltaone, deltazero, sone, szero, t, weight.perturb = NULL, landmark, extrapolate = FALSE, transform = FALSE, conf.int =FALSE, var = FALSE, incremental.value = FALSE, approx = T) {
+	delta = delta.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t,approx=approx)$delta	
+	delta.s = delta.s.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, sone=sone, szero=szero, t=t, landmark=landmark, extrapolate = extrapolate, transform = transform,approx=approx)
 	R.s = 1-delta.s/delta	
 	
 	if(var | conf.int){
 		if(is.null(weight.perturb)) {
 			
 	weight.perturb = matrix(rexp(500*(length(xone)+length(xzero)), rate=1), ncol = 500)}
-		delta.s.p.vec = apply(weight.perturb, 2, delta.s.surv.estimate, xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, sone=sone, szero=szero, t=t, landmark=landmark, extrapolate = extrapolate, transform = transform)
+		delta.s.p.vec = apply(weight.perturb, 2, delta.s.surv.estimate, xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, sone=sone, szero=szero, t=t, landmark=landmark, extrapolate = extrapolate, transform = transform,approx=approx)
 		print(weight.perturb[1:10, 1:10])
-		delta.p.vec = as.vector(unlist(apply(weight.perturb, 2, delta.surv.estimate, xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, var= FALSE, conf.int = FALSE)))
+		delta.p.vec = as.vector(unlist(apply(weight.perturb, 2, delta.surv.estimate, xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, var= FALSE, conf.int = FALSE,approx=approx)))
 		R.p = 1-delta.s.p.vec/delta.p.vec
 		if(conf.int)	{
 		conf.l.normal.delta = delta - 1.96*sd(delta.p.vec)
@@ -343,12 +344,12 @@ R.s.surv.estimate = function(xone,xzero, deltaone, deltazero, sone, szero, t, we
 	}
 	}
 	if(incremental.value) {
-		R.t.est = R.t.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, landmark = landmark,var = var, weight.perturb = weight.perturb)
+		R.t.est = R.t.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, landmark = landmark,var = var, weight.perturb = weight.perturb,approx=approx)
 		delta.t = R.t.est$delta.t
 		R.t = R.t.est$R.t
 		IV = R.s - R.t
 		if(var | conf.int){
-		delta.t.p.vec = apply(weight.perturb, 2, delta.t.surv.estimate, xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, landmark=landmark)
+		delta.t.p.vec = apply(weight.perturb, 2, delta.t.surv.estimate, xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, landmark=landmark,approx=approx)
 		R.p.t = 1-delta.t.p.vec/delta.p.vec
 		IV.p = R.p - R.p.t
 		if(conf.int)	{		
@@ -388,33 +389,33 @@ R.s.surv.estimate = function(xone,xzero, deltaone, deltazero, sone, szero, t, we
 }
 
 
- delta.t.surv.estimate = function(xone,xzero, deltaone, deltazero, t, weight.perturb = NULL, landmark) {
- 		delta.check = delta.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, conf.int = TRUE)
+ delta.t.surv.estimate = function(xone,xzero, deltaone, deltazero, t, weight.perturb = NULL, landmark, approx = T) {
+ 		delta.check = delta.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, conf.int = TRUE,approx=approx)
 	if(delta.check$conf.int.quantile[1] < 0 & delta.check$conf.int.quantile[2] > 0) {print("Warning: it looks like the treatment effect is not significant; may be difficult to interpret the residual treatment effect in this setting")}
 	if(delta.check$delta < 0) {print("Warning: it looks like you need to switch the treatment groups")}
 	if(is.null(weight.perturb)) {weight = rep(1,length(xone)+length(xzero))}
 	if(!is.null(weight.perturb)) {weight = weight.perturb}	
 	weight.group1 = weight[1:length(xone)]
 	weight.group0 = weight[(1+length(xone)):(length(xone)+length(xzero))]
-	censor0.t = censor.weight(xzero, deltazero, t, weight = weight.group0)
-	censor0.landmark = censor.weight(xzero, deltazero, landmark, weight = weight.group0)
-	censor1.t = censor.weight(xone, deltaone, t, weight = weight.group1)
-	censor1.landmark = censor.weight(xone, deltaone, landmark, weight = weight.group1)
+	censor0.t = censor.weight(xzero, deltazero, t, weight = weight.group0,approx=approx)
+	censor0.landmark = censor.weight(xzero, deltazero, landmark, weight = weight.group0,approx=approx)
+	censor1.t = censor.weight(xone, deltaone, t, weight = weight.group1,approx=approx)
+	censor1.landmark = censor.weight(xone, deltaone, landmark, weight = weight.group1,approx=approx)
 	cond.prop = (sum(weight.group1*1*(xone>t))/sum(weight.group1*censor1.t))/(sum(weight.group1*1*(xone>landmark))/sum(weight.group1*censor1.landmark))
 	delta.t = sum(weight.group0*1*(xzero>landmark))/sum(weight.group0*censor0.landmark)*cond.prop - sum(weight.group0*1*(xzero>t))/sum(weight.group0*censor0.t)
 	return(delta.t)
 }
 
 
-R.t.surv.estimate = function(xone,xzero, deltaone, deltazero, t, weight.perturb = NULL, landmark, var = FALSE, conf.int = FALSE) {	
-	delta = delta.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t)$delta	
-	delta.t = delta.t.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero,  t=t, landmark=landmark)
+R.t.surv.estimate = function(xone,xzero, deltaone, deltazero, t, weight.perturb = NULL, landmark, var = FALSE, conf.int = FALSE, approx = T) {	
+	delta = delta.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t,approx=approx)$delta	
+	delta.t = delta.t.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero,  t=t, landmark=landmark,approx=approx)
 	R.t = 1-delta.t/delta	
 	if(var | conf.int){
 		if(is.null(weight.perturb)) {
 	weight.perturb = matrix(rexp(500*(length(xone)+length(xzero)), rate=1), ncol = 500)}
-		delta.t.p.vec = apply(weight.perturb, 2, delta.t.surv.estimate, xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, landmark=landmark)
-		delta.p.vec = as.vector(unlist(apply(weight.perturb, 2, delta.surv.estimate, xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, var= FALSE, conf.int = FALSE)))
+		delta.t.p.vec = apply(weight.perturb, 2, delta.t.surv.estimate, xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, landmark=landmark,approx=approx)
+		delta.p.vec = as.vector(unlist(apply(weight.perturb, 2, delta.surv.estimate, xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, var= FALSE, conf.int = FALSE,approx=approx)))
 		R.p = 1-delta.t.p.vec/delta.p.vec
 		if(conf.int)	{
 		conf.l.normal.delta = delta - 1.96*sd(delta.p.vec)
@@ -526,16 +527,16 @@ perturb.nu.vector = function(mat, weights) {
 }
 
 
-Aug.R.s.surv.estimate = function(xone,xzero, deltaone, deltazero, sone, szero, t, weight.perturb = NULL, landmark, extrapolate = FALSE, transform = FALSE, basis.delta.one, basis.delta.zero,basis.delta.s.one = NULL, basis.delta.s.zero = NULL, incremental.value = FALSE) {
+Aug.R.s.surv.estimate = function(xone,xzero, deltaone, deltazero, sone, szero, t, weight.perturb = NULL, landmark, extrapolate = FALSE, transform = FALSE, basis.delta.one, basis.delta.zero,basis.delta.s.one = NULL, basis.delta.s.zero = NULL, incremental.value = FALSE, approx = T) {
 	if(is.null(basis.delta.s.one)) {basis.delta.s.one = basis.delta.one}
 	if(is.null(basis.delta.s.zero)) {basis.delta.s.zero = basis.delta.zero}
-	delta = delta.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t)$delta	
-	delta.s = delta.s.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, sone=sone, szero=szero, t=t, landmark=landmark, extrapolate = extrapolate, transform = transform)
+	delta = delta.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t,approx=approx)$delta	
+	delta.s = delta.s.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, sone=sone, szero=szero, t=t, landmark=landmark, extrapolate = extrapolate, transform = transform,approx=approx)
 	R.s = 1-delta.s/delta	
  	if(is.null(weight.perturb)) {
 	weight.perturb = matrix(rexp(500*(length(xone)+length(xzero)), rate=1), ncol = 500)}
-	delta.s.p.vec = apply(weight.perturb, 2, delta.s.surv.estimate, xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, sone=sone, szero=szero, t=t, landmark=landmark, extrapolate = extrapolate, transform = transform)
-	delta.p.vec = as.vector(unlist(apply(weight.perturb, 2, delta.surv.estimate, xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, var= FALSE, conf.int = FALSE)))
+	delta.s.p.vec = apply(weight.perturb, 2, delta.s.surv.estimate, xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, sone=sone, szero=szero, t=t, landmark=landmark, extrapolate = extrapolate, transform = transform,approx=approx)
+	delta.p.vec = as.vector(unlist(apply(weight.perturb, 2, delta.surv.estimate, xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, var= FALSE, conf.int = FALSE,approx=approx)))
 	R.p = 1-delta.s.p.vec/delta.p.vec
 	
 	#Augmented estimators
@@ -563,10 +564,10 @@ Aug.R.s.surv.estimate = function(xone,xzero, deltaone, deltazero, sone, szero, t
 	conf.fieller.aug.R = fieller.ci(as.vector(aug.delta.s.total$aug.perturb), as.vector(aug.delta.total$aug.perturb), aug.delta.s.total$aug.estimate, aug.delta.total$aug.estimate)
 
 	if(incremental.value) {
-		R.t.est = R.t.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, landmark = landmark,var = TRUE, weight.perturb = weight.perturb)
+		R.t.est = R.t.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, landmark = landmark,var = TRUE, weight.perturb = weight.perturb,approx=approx)
 		delta.t = R.t.est$delta.t
 		R.t = R.t.est$R.t
-		delta.t.p.vec = apply(weight.perturb, 2, delta.t.surv.estimate, xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, landmark=landmark)
+		delta.t.p.vec = apply(weight.perturb, 2, delta.t.surv.estimate, xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, landmark=landmark,approx=approx)
 		R.p.t = 1-delta.t.p.vec/delta.p.vec
 		
 		aug.delta.t.total = augment.est.vector(point.delta=delta.t, perturb.delta = delta.t.p.vec, treat.ind = treat.vector, basis = rbind(as.matrix(basis.delta.s.one), as.matrix(basis.delta.s.zero)), weights = weight.perturb)

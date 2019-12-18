@@ -10,7 +10,7 @@ Calculates censoring probability for weighting
 Helper function; calculates censoring probability needed for inverse probability of censoring weighting
 }
 \usage{
-censor.weight(data.x, data.delta, t, weight = NULL)
+censor.weight(data.x, data.delta, t, weight = NULL, approx = T)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -31,7 +31,10 @@ number, the time of interest
 a numeric vector or matrix of weights used for perturbation-resampling, default is null.
 
 }
-}
+  \item{approx}{
+TRUE or FALSE indicating whether an approximation should be used when calculating the probability of censoring; most relevant in settings where the survival time of interest for the primary outcome is greater than the last observed event but before the last censored case, default is TRUE.
+
+}}
 \details{
 %%  ~~ If necessary, more details than the description above ~~
 Computes the Kaplan Meier estimate of survival for the censoring random variable at the specified time
