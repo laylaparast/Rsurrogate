@@ -263,7 +263,7 @@ pred.smooth <-function(zz,zi.one, bw=NULL,y1, weight = NULL) {
 	if(var | conf.int) { 
 		if(is.null(weight.perturb)) {weight.perturb = matrix(rexp(500*(length(xone)+length(xzero)), rate=1), ncol = 500)}
 		delta.p.vec = apply(weight.perturb, 2, function(x) {  	censor1.t.p = censor.weight(xone, deltaone, t, weight = x[1:length(xone)],approx=approx); censor0.t.p = censor.weight(xzero, deltazero, t, weight = x[(1+length(xone)):(length(xone)+length(xzero))],approx=approx);
-sum(1*(xone > t)*x[1:length(xone)])/sum(x[1:length(xone)]*censor1.t) - sum(1*(xzero > t)*x[(1+length(xone)):(length(xone)+length(xzero))])/sum(x[(1+length(xone)):(length(xone)+length(xzero))]* censor0.t)})
+sum(1*(xone > t)*x[1:length(xone)])/sum(x[1:length(xone)]*censor1.t.p) - sum(1*(xzero > t)*x[(1+length(xone)):(length(xone)+length(xzero))])/sum(x[(1+length(xone)):(length(xone)+length(xzero))]* censor0.t.p)})
 		}
 	if(conf.int){
 		conf.l.normal = delta - 1.96*sd(delta.p.vec)
@@ -279,7 +279,7 @@ sum(1*(xone > t)*x[1:length(xone)])/sum(x[1:length(xone)]*censor1.t) - sum(1*(xz
 censor.weight = function(data.x, data.delta, t, weight=NULL, approx = T) {
 	if(is.null(weight)) {weight = rep(1,length(data.x))}
 	S.KM = survfit(Surv(data.x,1-data.delta)~1, weights = weight)
-	if(approx) {S.t.KM = approx(S.KM$time,S.KM$surv,t)$y}
+	if(approx) {S.t.KM = approx(S.KM$time,S.KM$surv,t, rule = 2)$y}
 	if(!approx) {S.t.KM = summary(S.KM, times = t)$surv}
 	return(S.t.KM)
 }
@@ -445,7 +445,7 @@ R.t.surv.estimate = function(xone,xzero, deltaone, deltazero, t, weight.perturb 
 
 
 
-pred.smooth.surv <- function(xone.f, deltaone.f, sone.f, szero.one, myt, weight.pred, extrapolate, transform)
+pred.smooth.surv <- function(xone.f, deltaone.f, sone.f, szero.one, myt, weight.pred, extrapolate, transform, ps.weight = NULL)
   { 
     if(transform){	 	
     	mean.o= mean(c(sone.f, szero.one))
@@ -460,7 +460,8 @@ pred.smooth.surv <- function(xone.f, deltaone.f, sone.f, szero.one, myt, weight.
     bw <- bwini/(n.s^0.11)
     kerni.ss = Kern.FUN(zz=sone.f,zi=szero.one,bw)           
     tmpind = (xone.f<=myt)&(deltaone.f==1); tj = xone.f[tmpind]; 
-    kerni.1 = t(weight.pred*t(kerni.ss))
+    if(is.null(ps.weight)) {kerni.1 = t(weight.pred*t(kerni.ss))}
+    if(!is.null(ps.weight)) {kerni.1 = t(ps.weight*weight.pred*t(kerni.ss))}
     pihamyt0.tj.ss = helper.si(tj, "<=", xone.f, Vi=t(kerni.1)) ## n.tj x n.ss matrix ##   
     dLamhat.tj.ss = t((kerni.1[,tmpind]))/pihamyt0.tj.ss; 
     ret = apply(dLamhat.tj.ss,2,sum)
@@ -1052,3 +1053,222 @@ me.variance.estimate  = function(replicates){
 	var.u = sum((replicates-mean.i)^2, na.rm = T)/sum(num.i)
 	return(var.u)
 }
+
+
+R.multiple.surv = function(xone,xzero, deltaone, deltazero, sone, szero, type = 1, t, weight.perturb = NULL, landmark, extrapolate = FALSE, transform = FALSE, conf.int =FALSE, var = FALSE, incremental.value = FALSE, approx = T) {
+	delta = delta.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t,approx=approx)$delta	
+	delta.s = delta.multiple.surv(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, sone=sone, szero=szero, type = type, t=t, landmark=landmark, extrapolate = extrapolate, transform = transform,approx=approx)
+	R.s = 1-delta.s/delta	
+	
+	if(var | conf.int){
+		if(is.null(weight.perturb)) {
+			
+	weight.perturb = matrix(rexp(500*(length(xone)+length(xzero)), rate=1), ncol = 500)}
+		delta.s.p.vec = apply(weight.perturb, 2, delta.multiple.surv, xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, sone=sone, szero=szero, type = type, t=t, landmark=landmark, extrapolate = extrapolate, transform = transform,approx=approx)
+		print(weight.perturb[1:10, 1:10])
+		delta.p.vec = as.vector(unlist(apply(weight.perturb, 2, delta.surv.estimate, xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, var= FALSE, conf.int = FALSE,approx=approx)))
+		R.p = 1-delta.s.p.vec/delta.p.vec
+		if(conf.int)	{
+		conf.l.normal.delta = delta - 1.96*sd(delta.p.vec)
+		conf.u.normal.delta = delta + 1.96*sd(delta.p.vec)
+		conf.l.quantile.delta = quantile(delta.p.vec, 0.025)
+		conf.u.quantile.delta = quantile(delta.p.vec, 0.975)
+		
+		conf.l.normal.delta.s = delta.s - 1.96*sd(delta.s.p.vec)
+		conf.u.normal.delta.s = delta.s + 1.96*sd(delta.s.p.vec)
+		conf.l.quantile.delta.s = quantile(delta.s.p.vec, 0.025)
+		conf.u.quantile.delta.s = quantile(delta.s.p.vec, 0.975)
+
+		conf.l.normal.R.s = R.s - 1.96*sd(R.p)
+		conf.u.normal.R.s = R.s + 1.96*sd(R.p)
+		conf.l.quantile.R.s = quantile(R.p, 0.025)
+		conf.u.quantile.R.s = quantile(R.p, 0.975)
+		
+		fieller.ci.calc = as.vector(fieller.ci(delta.s.p.vec, delta.p.vec, delta.s , delta))
+	}
+	}
+	if(incremental.value) {
+		R.t.est = R.t.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, landmark = landmark,var = var, weight.perturb = weight.perturb,approx=approx)
+		delta.t = R.t.est$delta.t
+		R.t = R.t.est$R.t
+		IV = R.s - R.t
+		if(var | conf.int){
+		delta.t.p.vec = apply(weight.perturb, 2, delta.t.surv.estimate, xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, landmark=landmark,approx=approx)
+		R.p.t = 1-delta.t.p.vec/delta.p.vec
+		IV.p = R.p - R.p.t
+		if(conf.int)	{		
+		conf.l.normal.delta.t = delta.t - 1.96*sd(delta.t.p.vec)
+		conf.u.normal.delta.t = delta.t + 1.96*sd(delta.t.p.vec)
+		conf.l.quantile.delta.t = quantile(delta.t.p.vec, 0.025)
+		conf.u.quantile.delta.t = quantile(delta.t.p.vec, 0.975)
+
+		conf.l.normal.R.t = R.t - 1.96*sd(R.p.t)
+		conf.u.normal.R.t = R.t + 1.96*sd(R.p.t)
+		conf.l.quantile.R.t = quantile(R.p.t, 0.025)
+		conf.u.quantile.R.t = quantile(R.p.t, 0.975)
+		
+		conf.l.normal.iv = IV - 1.96*sd(IV.p)
+		conf.u.normal.iv = IV + 1.96*sd(IV.p)
+		conf.l.quantile.iv = quantile(IV.p, 0.025)
+		conf.u.quantile.iv = quantile(IV.p, 0.975)
+		
+		fieller.ci.calc.t = as.vector(fieller.ci(delta.t.p.vec, delta.p.vec, delta.t , delta))
+	}
+	}
+
+	}
+	r.list = list("delta" = delta, "delta.s" =delta.s, "R.s" = R.s)
+	if(var & !conf.int) {r.list = c(r.list, list("delta.var" = var(delta.p.vec), "delta.s.var" = var(delta.s.p.vec), "R.s.var" = var(R.p)))}
+	if(conf.int) {r.list = c(r.list, list("delta.var" = var(delta.p.vec), "delta.s.var" = var(delta.s.p.vec), "R.s.var" = var(R.p), "conf.int.normal.delta" = c(conf.l.normal.delta, conf.u.normal.delta), "conf.int.quantile.delta" = as.vector(c(conf.l.quantile.delta, conf.u.quantile.delta)), "conf.int.normal.delta.s" = c(conf.l.normal.delta.s, conf.u.normal.delta.s), "conf.int.quantile.delta.s" = as.vector(c(conf.l.quantile.delta.s, conf.u.quantile.delta.s)),
+"conf.int.normal.R.s" = c(conf.l.normal.R.s, conf.u.normal.R.s), "conf.int.quantile.R.s" = as.vector(c(conf.l.quantile.R.s, conf.u.quantile.R.s)), "conf.int.fieller.R.s" = fieller.ci.calc))}
+	if(incremental.value) {
+		r.list = c(r.list, list("delta.t" =delta.t, "R.t" = R.t, "incremental.value" = IV ))
+		if(var & !conf.int) {r.list = c(r.list, list("delta.t.var" = var(delta.t.p.vec), "R.t.var" = var(R.p), "incremental.value.var" = var(IV.p)))}
+		if(conf.int) { r.list = c(r.list, list("delta.t.var" = var(delta.t.p.vec), "R.t.var" = var(R.p), "incremental.value.var" = var(IV.p),  "conf.int.normal.delta.t" = c(conf.l.normal.delta.t, conf.u.normal.delta.t), "conf.int.quantile.delta.t" = as.vector(c(conf.l.quantile.delta.t, conf.u.quantile.delta.t)),
+"conf.int.normal.R.t" = c(conf.l.normal.R.t, conf.u.normal.R.t), "conf.int.quantile.R.t" = as.vector(c(conf.l.quantile.R.t, conf.u.quantile.R.t)), "conf.int.fieller.R.t" = fieller.ci.calc.t, "conf.int.normal.iv" = c(conf.l.normal.iv, conf.u.normal.iv), "conf.int.quantile.iv" = as.vector(c(conf.l.quantile.iv, conf.u.quantile.iv))))			
+		}
+		}
+	return(r.list)	
+
+}
+
+delta.multiple.surv = function(xone,xzero, deltaone, deltazero, sone, szero, type = 1, t, weight.perturb = NULL, landmark, extrapolate = FALSE, transform = FALSE, approx = T) {
+	
+	delta.check = delta.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, conf.int = TRUE,approx=approx)
+	if(delta.check$conf.int.quantile[1] < 0 & delta.check$conf.int.quantile[2] > 0 & is.null(weight.perturb)) {print("Warning: it looks like the treatment effect is not significant; may be difficult to interpret the residual treatment effect in this setting")}
+	if(delta.check$delta < 0 & is.null(weight.perturb)) {print("Warning: it looks like you need to switch the treatment groups")}
+	if(is.null(weight.perturb)) {weight = rep(1,length(xone)+length(xzero))}
+	if(!is.null(weight.perturb)) {weight = weight.perturb}	
+	weight.group1 = weight[1:length(xone)]
+	weight.group0 = weight[(1+length(xone)):(length(xone)+length(xzero))]
+	#type 1 = 2-stage smooth, 2 = 2-stage weighted, 3 = dr smoothed, 4 = 2-stage model, 5 = weighted only, 6 = dr model based
+	if(type == 1) {
+		cox.model = coxph(Surv(xone[xone>landmark], deltaone[xone>landmark])~sone[xone>landmark,], weights = 					weight.group1[xone>landmark])
+		sone.sub = as.matrix(sone[xone>landmark,])
+		szero.sub = as.matrix(szero[xzero>landmark,])
+		score.one = sone.sub%*%cox.model$coef
+		score.zero = szero.sub%*%cox.model$coef
+		mu.1.s0 = pred.smooth.surv(xone.f=xone[xone>landmark], deltaone.f = deltaone[xone>landmark], 							sone.f=as.vector(score.one), szero.one = as.vector(score.zero), myt=t, weight.pred = weight.group1[xone>landmark], 		extrapolate = extrapolate, transform=transform)
+		censor0.t = censor.weight(xzero, deltazero, t, weight = weight.group0)
+		censor0.landmark = censor.weight(xzero, deltazero, landmark, weight = weight.group0)
+		delta.s = sum(weight.group0[xzero>landmark]*mu.1.s0)/sum(weight.group0*censor0.landmark) - 								sum(weight.group0*1*(xzero>t))/sum(weight.group0*censor0.t)
+	}
+	if(type == 2) {
+		treat.ind = c(rep(1,length(xone)), rep(0, length(xzero)))
+		x.vector = c(xone, xzero)
+		d.vector = c(deltaone, deltazero)
+		s.matbig = rbind(sone, szero)
+		pi.0 = sum(weight.group0)/(sum(weight.group1) + sum(weight.group0))
+		ps.model = glm(1-treat.ind[x.vector > landmark] ~ s.matbig[x.vector>landmark,], family = binomial ,weights = 			weight[x.vector>landmark])
+		ps.pred = predict(ps.model, type = "response")
+		ps.pred.smooth = ps.pred
+		treat.ind.reduce = treat.ind[x.vector>landmark]
+		ps.pred.smooth.one = ps.pred[treat.ind.reduce == 1]	
+		cox.model = coxph(Surv(xone[xone>landmark], deltaone[xone>landmark])~sone[xone>landmark,], weights = 					weight.group1[xone>landmark])
+		sone.sub = as.matrix(sone[xone>landmark,])
+		szero.sub = as.matrix(szero[xzero>landmark,])
+		score.one = sone.sub%*%cox.model$coef
+		score.zero = szero.sub%*%cox.model$coef
+		mu.1.s0 = pred.smooth.surv(xone.f=xone[xone>landmark], deltaone.f = deltaone[xone>landmark], 					sone.f=as.vector(score.one), szero.one = as.vector(score.zero), myt=t, weight.pred = weight.group1[xone>landmark], 		extrapolate = extrapolate, transform=transform, ps.weight = ps.pred.smooth.one/(1-ps.pred.smooth.one))
+		censor0.t = censor.weight(xzero, deltazero, t, weight = weight.group0)
+		censor0.landmark = censor.weight(xzero, deltazero, landmark, weight = weight.group0)
+		delta.s = sum(weight.group0[xzero>landmark]*mu.1.s0)/sum(weight.group0*censor0.landmark) - 								sum(weight.group0*1*(xzero>t))/sum(weight.group0*censor0.t)
+	}
+	if(type ==3 ){
+		treat.ind = c(rep(1,length(xone)), rep(0, length(xzero)))
+		x.vector = c(xone, xzero)
+		d.vector = c(deltaone, deltazero)
+		s.matbig = rbind(sone, szero)
+		pi.0 = sum(weight.group0)/(sum(weight.group1) + sum(weight.group0))
+		ps.model = glm(1-treat.ind[x.vector > landmark] ~ s.matbig[x.vector>landmark,], family = binomial ,weights = 			weight[x.vector>landmark])
+		ps.pred = predict(ps.model, type = "response")
+		ps.pred.smooth = ps.pred
+		treat.ind.reduce = treat.ind[x.vector>landmark]
+		censor0.t = censor.weight(xzero, deltazero, t, weight = weight.group0)
+		censor0.landmark = censor.weight(xzero, deltazero, landmark, weight = weight.group0)
+		censor1.t = censor.weight(xone, deltaone, t, weight = weight.group1)
+		censor1.landmark = censor.weight(xone, deltaone, landmark, weight = weight.group1)
+		censor.t.vector = censor1.t*treat.ind + censor0.t*(1-treat.ind)
+		censor.landmark.vector = censor1.landmark*treat.ind + censor0.landmark*(1-treat.ind)
+		#term in brackets
+		bracket.term = (1*(treat.ind.reduce == 1)*ps.pred.smooth*censor1.landmark)/((1-ps.pred.smooth)*censor0.landmark) - 		1*(treat.ind.reduce == 0)
+		first.term = 1*weight[x.vector>landmark]*(x.vector[x.vector>landmark] > t)/(censor.t.vector[x.vector>landmark]*pi.0)
+		s.predictor = as.matrix(sone[xone>landmark,])
+		x.adjust = xone[xone>landmark] - landmark
+		cox.model = coxph(Surv(x.adjust, deltaone[xone>landmark])~s.predictor, weights = weight.group1[xone>landmark], 			model = TRUE)
+		sone.sub = as.matrix(sone[xone>landmark,])
+		szero.sub = as.matrix(szero[xzero>landmark,])
+		sall.sub = as.matrix(s.matbig[x.vector>landmark,])
+		score.one = sone.sub%*%cox.model$coef
+		score.all = sall.sub%*%cox.model$coef
+		mu.1.s0 = pred.smooth.surv(xone.f=xone[xone>landmark], deltaone.f = deltaone[xone>landmark], 							sone.f=as.vector(score.one), szero.one = as.vector(score.all), myt=t, weight.pred = weight.group1[xone>landmark], 		extrapolate = extrapolate, transform = transform)
+		second.term = weight[x.vector>landmark]*mu.1.s0/(censor.landmark.vector[x.vector>landmark]*								pi.0)
+		delta.s = (1/sum(weight))*sum(first.term*bracket.term - second.term*bracket.term)	
+	}
+	if(type == 4) {
+		s.predictor = as.matrix(sone[xone>landmark,])
+		x.adjust = xone[xone>landmark] - landmark
+		cox.model = coxph(Surv(x.adjust, deltaone[xone>landmark])~s.predictor, weights = weight.group1[xone>landmark], 			model = TRUE)
+		szero.sub = as.matrix(szero[xzero>landmark,])
+		score.zero = exp(szero.sub%*%cox.model$coef)
+		baseline.hazard = basehaz(cox.model, centered = FALSE)
+		gap.time = t-landmark
+		baseline.t <- approx(baseline.hazard$time,baseline.hazard$hazard,gap.time, rule = 2)$y
+		mu.1.s0 = exp(-baseline.t*score.zero)
+		censor0.t = censor.weight(xzero, deltazero, t, weight = weight.group0)
+		censor0.landmark = censor.weight(xzero, deltazero, landmark, weight = weight.group0)
+		delta.s = sum(weight.group0[xzero>landmark]*mu.1.s0)/sum(weight.group0*censor0.landmark) - 								sum(weight.group0*1*(xzero>t))/sum(weight.group0*censor0.t)
+	}
+	if(type == 5) {
+		treat.ind = c(rep(1,length(xone)), rep(0, length(xzero)))
+		x.vector = c(xone, xzero)
+		s.matbig = rbind(sone, szero)
+		pi.0 = sum(weight.group0)/(sum(weight.group0) + sum(weight.group1))
+		ps.model = glm(1-treat.ind[x.vector > landmark] ~ s.matbig[x.vector>landmark,], family = binomial, weights = 			weight[x.vector>landmark])
+		ps.pred = predict(ps.model, type = "response")
+		ps.pred.smooth = ps.pred
+		treat.ind.reduce = treat.ind[x.vector>landmark]
+		censor0.t = censor.weight(xzero, deltazero, t, weight = weight.group0)
+		censor0.landmark = censor.weight(xzero, deltazero, landmark, weight = weight.group0)
+		censor1.t = censor.weight(xone, deltaone, t, weight = weight.group1)
+		censor1.landmark = censor.weight(xone, deltaone, landmark, weight = weight.group1)
+    	weight.censor.corrected = censor1.landmark/censor0.landmark
+    	treat.term = sum(1*(xone[xone>landmark]>t)*ps.pred.smooth[treat.ind.reduce==1]* 										censor1.landmark*weight.group1[xone>landmark]/ (1-ps.pred.smooth[treat.ind.reduce==1]))/sum(censor1.t* 					pi.0*censor0.landmark*weight)
+    	control.term = sum(1*(xzero>t)*weight.group0)/sum(censor0.t*pi.0*weight)
+    	delta.s = treat.term-control.term
+	}
+	if(type == 6) {
+		treat.ind = c(rep(1,length(xone)), rep(0, length(xzero)))
+		x.vector = c(xone, xzero)
+		d.vector = c(deltaone, deltazero)
+		s.matbig = rbind(sone, szero)
+		pi.0 = sum(weight.group0)/(sum(weight.group1) + sum(weight.group0))
+		ps.model = glm(1-treat.ind[x.vector > landmark] ~ s.matbig[x.vector>landmark,], family = binomial ,weights = 			weight[x.vector>landmark])
+		ps.pred = predict(ps.model, type = "response")
+		ps.pred.smooth = ps.pred
+		treat.ind.reduce = treat.ind[x.vector>landmark]
+		censor0.t = censor.weight(xzero, deltazero, t, weight = weight.group0)
+		censor0.landmark = censor.weight(xzero, deltazero, landmark, weight = weight.group0)
+		censor1.t = censor.weight(xone, deltaone, t, weight = weight.group1)
+		censor1.landmark = censor.weight(xone, deltaone, landmark, weight = weight.group1)
+		censor.t.vector = censor1.t*treat.ind + censor0.t*(1-treat.ind)
+		censor.landmark.vector = censor1.landmark*treat.ind + censor0.landmark*(1-treat.ind)
+		#term in brackets
+		bracket.term = (1*(treat.ind.reduce == 1)*ps.pred.smooth*censor1.landmark)/((1-ps.pred.smooth)*censor0.landmark) - 		1*(treat.ind.reduce == 0)
+		first.term = 1*weight[x.vector>landmark]*(x.vector[x.vector>landmark] > t)/(censor.t.vector[x.vector>landmark]*			pi.0)
+	
+		s.predictor = as.matrix(sone[xone>landmark,])
+		x.adjust = xone[xone>landmark] - landmark
+		cox.model = coxph(Surv(x.adjust, deltaone[xone>landmark])~s.predictor, weights = weight.group1[xone>landmark], 			model = TRUE)
+		sall.sub = as.matrix(s.matbig[x.vector>landmark,])
+		score.all = sall.sub%*%cox.model$coef
+		baseline.hazard = basehaz(cox.model, centered = FALSE)
+		gap.time = t-landmark
+		baseline.t <- approx(baseline.hazard$time,baseline.hazard$hazard,gap.time, rule = 2)$y
+		cox.prediction = exp(-baseline.t*exp(score.all))
+		second.term = weight[x.vector>landmark]*cox.prediction/(censor.landmark.vector[x.vector>landmark]*pi.0)
+		delta.s = (1/sum(weight))*sum(first.term*bracket.term - second.term*bracket.term)
+	}
+	return(delta.s)
+}
+

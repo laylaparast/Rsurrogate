@@ -68,7 +68,7 @@ TRUE or FALSE; indicates whether a 95\% confidence interval for delta is request
 }
   \item{var}{
 %%     ~~Describe \code{var} here~~
-TRUE or FALSE; indicates whether a variance estimate for delta is requested, default is FALSE.
+TRUE or FALSE; indicates whether a variance estimate is requested, default is FALSE.
 }
   \item{incremental.value}{
 %%     ~~Describe \code{var} here~~
@@ -151,7 +151,7 @@ A list is returned:
 }
 \references{
 %% ~put references to the literature/web site here ~
-Parast L, Cai T and Tian L. Evaluating Surrogate Marker Information using Censored Data. Under Review.
+Parast, L., Cai, T., & Tian, L. (2017). Evaluating surrogate marker information using censored data. Statistics in Medicine, 36(11), 1767-1782.
 }
 \author{
 %%  ~~who you are~~

@@ -13,7 +13,7 @@ outcome information.
 }
 \usage{
 pred.smooth.surv(xone.f, deltaone.f, sone.f, szero.one, myt, weight.pred, 
-extrapolate, transform)
+extrapolate, transform, ps.weight = NULL)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -50,10 +50,16 @@ TRUE or FALSE; indicates whether local constant extrapolation should be used, de
 TRUE or FALSE; indicates whether a transformation should be used, default is FALSE
 
 }
+ \item{ps.weight}{
+%%     ~~Describe \code{transform} here~~
+vector of propensity score weights to be used in the multiple marker setting, default is NULL
+
+}
+
 }
 \details{
 %%  ~~ If necessary, more details than the description above ~~
-Details are included in the documentation for R.s.surv.estimate
+Details are included in the documentation for R.s.surv.estimate and R.multiple.surv
 
 }
 \value{

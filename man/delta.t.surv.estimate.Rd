@@ -55,7 +55,7 @@ TRUE or FALSE indicating whether an approximation should be used when calculatin
 }
 \references{
 %% ~put references to the literature/web site here ~
-Parast L, Cai T and Tian L. Evaluating Surrogate Marker Information using Censored Data. Under Review.
+Parast, L., Cai, T., & Tian, L. (2017). Evaluating surrogate marker information using censored data. Statistics in Medicine, 36(11), 1767-1782.
 }
 \value{
 %%  ~Describe the value returned

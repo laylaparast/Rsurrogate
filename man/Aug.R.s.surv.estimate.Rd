@@ -128,7 +128,7 @@ Garcia TP, Ma Y, Yin G. Efficiency improvement in a class of survival models thr
 
 Zhang M, Tsiatis AA, Davidian M. Improving efficiency of inferences in randomized clinical trials using auxiliary covariates. Biometrics 2008; 64(3): 707-715.
 
-Parast L, Cai T and Tian L. Evaluating Surrogate Marker Information using Censored Data. Under Review.
+Parast, L., Cai, T., & Tian, L. (2017). Evaluating surrogate marker information using censored data. Statistics in Medicine, 36(11), 1767-1782.
 
 }
 \author{
