@@ -6,7 +6,7 @@
 
 `Rsurrogate` is an `R` package that provides functions to estimate the proportion of treatment effect on the primary outcome that is explained by the treatment effect on the surrogate marker.     
 
-More details on the method are available in 
+More details on the method are available in: 
 
 * Parast L, McDermott M, and Tian L (2016). Robust Estimation of the Proportion of Treatment Eﬀect Explained by Surrogate Marker Information. Statistics in Medicine, 35(10):
 1637-1653. [doi:10.1002/sim.6820](https://doi.org/10.1002/sim.6820).
