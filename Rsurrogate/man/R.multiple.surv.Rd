@@ -129,7 +129,7 @@ The weighted estimator (option type 5) is defined as:
 \eqn{ \hat{\Delta}^{PS}_{S}(t,t_0) =  n^{-1} \sum_{i=1}^n  \{\frac{I(X_{i}>t)}{\hat{W}_{G_i}^C(t)\bar{\pi}_B}  [ I(G_i = A)\hat{L}(S_{Ai})   - I(G_i = B )  ]  \} }
 and \eqn{\hat{R}^{PS}_{S}(t,t_0) =1- \hat{\Delta}^{PS}_{S}(t,t_0)/\hat{\Delta}(t).} This estimator  completely relies on the correct specification of \eqn{\pi(S)}. The double-robust model-based estimator (option 6 for type) is defined as \eqn{\hat{\Delta}_{S}^{DR2}(t,t_0)}  and \eqn{\hat{R}_{S}^{DR2}(t,t_0) =1- \hat{\Delta}_{S}^{DR2}(t,t_0)/\hat{\Delta}(t)} which are constructed parallel to the construction of  \eqn{\hat{\Delta}_{S}^{DR}(t,t_0)} i.e., a combination of  \eqn{\hat{\Delta}_{S}^M(t,t_0)} and \eqn{\hat{R}^{PS}_{S}(t,t_0)}.
  
-Variance estimates are obtained using perturbation resampling. If a confidence interval is requested three versions are provided: a normal approximation based interval, a quantile based interval and Fieller's confidence interval, all using perturbation-resampling. An estimate of the incremental value of the surrogate marker information can also be requested; this essentially compared the proportion explained by the surrogate information vs. the proportion explained by \eqn{T} alone up to \eqn{t_0}. Details can be found in Parast, L., Cai, T., Tian, L. (2021). Evaluating Multiple Surrogate Markers with Censored Data. Biometrics, In press.
+Variance estimates are obtained using perturbation resampling. If a confidence interval is requested three versions are provided: a normal approximation based interval, a quantile based interval and Fieller's confidence interval, all using perturbation-resampling. An estimate of the incremental value of the surrogate marker information can also be requested; this essentially compared the proportion explained by the surrogate information vs. the proportion explained by \eqn{T} alone up to \eqn{t_0}. Details can be found in Parast, L., Cai, T., & Tian, L. (2021). Evaluating multiple surrogate markers with censored data. Biometrics, 77(4), 1315-1327.
 }
 
 \value{
@@ -170,7 +170,7 @@ A list is returned:
 %% ~put references to the literature/web site here ~
 Parast, L., Cai, T., & Tian, L. (2017). Evaluating surrogate marker information using censored data. Statistics in Medicine, 36(11), 1767-1782.
 
-Details can be found in Parast, L., Cai, T., Tian, L. (2021). Evaluating Multiple Surrogate Markers with Censored Data. Biometrics, In press.
+Parast, L., Cai, T., & Tian, L. (2021). Evaluating multiple surrogate markers with censored data. Biometrics, 77(4), 1315-1327.
 }
 \author{
 %%  ~~who you are~~

@@ -38,7 +38,7 @@ Returns a vector of length 2, lower bound of the 95\% confidence interval and up
 }
 \references{
 %% ~put references to the literature/web site here ~
-Parast, L., Garcia, TP, Prentice, RL, Carroll, RJ (2021). Robust Methods to Correct for Measurement Error when Evaluating a Surrogate Marker. Biometrics, In press.
+Parast, L., Garcia, T. P., Prentice, R. L., & Carroll, R. J. (2022). Robust methods to correct for measurement error when evaluating a surrogate marker. Biometrics, 78(1), 9-23.
 
 Fieller, Edgar C. (1954). Some problems in interval estimation. Journal of the Royal Statistical Society. Series B (Methodological), 175-185.
 

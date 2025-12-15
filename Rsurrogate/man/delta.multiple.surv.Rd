@@ -86,7 +86,7 @@ TRUE or FALSE indicating whether an approximation should be used when calculatin
 }
 \references{
 %% ~put references to the literature/web site here ~
-Details can be found in Parast, L., Cai, T., Tian, L. (2021). Evaluating Multiple Surrogate Markers with Censored Data. Biometrics, In press.
+Parast, L., Cai, T., & Tian, L. (2021). Evaluating multiple surrogate markers with censored data. Biometrics, 77(4), 1315-1327.
 }
 
 \note{If the treatment effect is not significant, the user will receive the following message: "Warning: it looks like the treatment effect is not significant; may be difficult to interpret the residual treatment effect in this setting".}

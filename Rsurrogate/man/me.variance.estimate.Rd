@@ -29,8 +29,7 @@ estimate of measurement error variance
 %% ~put references to the literature/web site here ~
 Carroll, R. J., Ruppert, D., Crainiceanu, C. M., and Stefanski, L. A. (2006). Measurementerror in nonlinear models: a modern perspective. Chapman and Hall/CRC.
 
-Parast, L., Garcia, TP, Prentice, RL, Carroll, RJ (2021). Robust Methods to Correct for Measurement Error when Evaluating a Surrogate Marker. Biometrics, In press. 
-
+Parast, L., Garcia, T. P., Prentice, R. L., & Carroll, R. J. (2022). Robust methods to correct for measurement error when evaluating a surrogate marker. Biometrics, 78(1), 9-23.
 }
 \author{
 %%  ~~who you are~~

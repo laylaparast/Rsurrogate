@@ -89,7 +89,7 @@ where \eqn{Z_{gi}, i=1, 2, \cdots, n_g} are i.i.d. random vectors of baseline co
 \deqn{ \Xi_{12} = \mbox{cov}  \{ \hat{\Delta}(t), n_1^{-1}\sum_{i=1}^{n_1}h(Z_{1i})-n_0^{-1}\sum_{i=1}^{n_0}h(Z_{0i}) \},}
 \deqn{  \Xi_{22} = \mbox{var}  \{n_1^{-1}\sum_{i=1}^{n_1}h(Z_{1i})-n_0^{-1}\sum_{i=1}^{n_0}h(Z_{0i})\}}
 and thus we can obtain \eqn{\hat{\Delta}(t)^{AUG}} by replacing \eqn{\gamma} with a consistent estimator, \eqn{\hat{\gamma}} obtained using perturbation-resampling. A similar approach is used to obtain  \eqn{\hat{\Delta}_S(t)^{AUG}} and thus construct
-\deqn{\hat{R}_S(t,t_0)^{AUG}=1-\frac{\hat{\Delta}_S(t,t_0)^{AUG}}{\hat{\Delta}(t)^{AUG}}.}
+\deqn{\hat{R}_S(t,t_0)^{AUG}=1-\frac{\hat{\Delta}_S(t,t_0)^{AUG}}{\hat{\Delta}(t)^{AUG}}.} When only a single \eqn{Z_{gi}} is provided in the basis argument, the following basis is used in this function: \eqn{h(Z_{gi}) = (1, Z_{gi}, Z_{gi}^2)'.}
 
 }
 \value{
@@ -134,7 +134,7 @@ Parast, L., Cai, T., & Tian, L. (2017). Evaluating surrogate marker information 
 \author{
 Layla Parast
 }
-\note{If the treatment effect is not significant, the user will receive the following message: "Warning: it looks like the treatment effect is not significant; may be difficult to interpret the residual treatment effect in this setting". If the treatment effect is negative, the user will receive the following message: "Warning: it looks like you need to switch the treatment groups" as this package assumes throughout that larger values of the event time are better. If the observed support of the surrogate marker for the control group is outside the observed support of the surrogate marker for the treatment group, the user will receive the following message: "Warning: observed supports do not appear equal, may need to consider a transformation or extrapolation".
+\note{If the treatment effect is not significant, the user will receive the following message: "Warning: it looks like the treatment effect is not significant; may be difficult to interpret the residual treatment effect in this setting". If the observed support of the surrogate marker for the control group is outside the observed support of the surrogate marker for the treatment group, the user will receive the following message: "Warning: observed supports do not appear equal, may need to consider a transformation or extrapolation".
 }
 \examples{
 #computationally intensive

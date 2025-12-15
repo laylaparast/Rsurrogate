@@ -13,7 +13,7 @@ This function calculates the robust estimate of the residual treatment effect ac
 \usage{
 delta.s.surv.estimate(xone, xzero, deltaone, deltazero, sone, szero, t, 
 weight.perturb = NULL, landmark, extrapolate = FALSE, transform = FALSE,
-approx = T)
+approx = T, warn.te = FALSE, warn.support = FALSE)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -66,6 +66,15 @@ TRUE or FALSE; indicates whether the user wants to use a transformation for the 
   \item{approx}{
 TRUE or FALSE indicating whether an approximation should be used when calculating the probability of censoring; most relevant in settings where the survival time of interest for the primary outcome is greater than the last observed event but before the last censored case, default is TRUE.
 }
+  \item{warn.te}{
+%%     ~~Describe \code{type} here~~
+value passed from R.s.estimate function to control warnings; user does not need to specify.
+}
+  \item{warn.support}{
+%%     ~~Describe \code{type} here~~
+value passed from R.s.estimate function to control warnings; user does not need to specify.
+}
+
 }
 \details{
 %%  ~~ If necessary, more details than the description above ~~
@@ -85,7 +94,7 @@ TRUE or FALSE indicating whether an approximation should be used when calculatin
 Parast, L., Cai, T., & Tian, L. (2017). Evaluating surrogate marker information using censored data. Statistics in Medicine, 36(11), 1767-1782.
 }
 
-\note{If the treatment effect is not significant, the user will receive the following message: "Warning: it looks like the treatment effect is not significant; may be difficult to interpret the residual treatment effect in this setting". If the treatment effect is negative, the user will receive the following message: "Warning: it looks like you need to switch the treatment groups" as this package assumes throughout that larger values of the event time are better. If the observed support of the surrogate marker for the control group is outside the observed support of the surrogate marker for the treatment group, the user will receive the following message: "Warning: observed supports do not appear equal, may need to consider a transformation or extrapolation".}
+\note{If the treatment effect is not significant, the user will receive the following message: "Warning: it looks like the treatment effect is not significant; may be difficult to interpret the residual treatment effect in this setting". If the observed support of the surrogate marker for the control group is outside the observed support of the surrogate marker for the treatment group, the user will receive the following message: "Warning: observed supports do not appear equal, may need to consider a transformation or extrapolation".}
 
 
 

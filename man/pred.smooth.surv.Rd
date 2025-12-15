@@ -13,7 +13,7 @@ outcome information.
 }
 \usage{
 pred.smooth.surv(xone.f, deltaone.f, sone.f, szero.one, myt, weight.pred, 
-extrapolate, transform, ps.weight = NULL)
+extrapolate, transform, ps.weight = NULL, warn.support = FALSE)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -55,6 +55,12 @@ TRUE or FALSE; indicates whether a transformation should be used, default is FAL
 vector of propensity score weights to be used in the multiple marker setting, default is NULL
 
 }
+
+  \item{warn.support}{
+%%     ~~Describe \code{type} here~~
+value passed from R.s.estimate function to control warnings; user does not need to specify.
+}
+
 
 }
 \details{

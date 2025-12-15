@@ -61,6 +61,7 @@ delta.s.estimate = function(sone,szero,yone,yzero, weight.perturb = NULL, number
   		sd.o = sd(c(szero, sone))
     	s0.new = pnorm((szero- mean.o)/sd.o)
     	s1.new = pnorm((sone - mean.o)/sd.o)
+    	h.select = bw.nrd(s1.new)*(length(s1.new)^(-0.25))
 		} 
 		if(!transform){
 			s0.new = szero
@@ -68,7 +69,7 @@ delta.s.estimate = function(sone,szero,yone,yzero, weight.perturb = NULL, number
 		}
 		mu.1.s0 = sapply(s0.new,pred.smooth,zz=s1.new, bw=h.select, y1=yone, weight = weight[(1:length(yone))])
   		if(sum(is.na(mu.1.s0))>0 & extrapolate){
-  			print(paste("Note: ", sum(is.na(mu.1.s0)), " values extrapolated."))
+  			if(!warn.support){print(paste("Note: ", sum(is.na(mu.1.s0)), " values extrapolated."))}
     		c.mat = cbind(s0.new, mu.1.s0)
     		for(o in 1:length(mu.1.s0)) {
     			if(is.na(mu.1.s0[o])){
@@ -104,7 +105,7 @@ delta.s.estimate = function(sone,szero,yone,yzero, weight.perturb = NULL, number
 		}
 		mu.1.s0 = sapply(s0.new,pred.smooth,zz=s1.new, y1=yone, weight = weight[(1:length(yone))])
 		if(sum(is.na(mu.1.s0))>0 & extrapolate){
-			print(paste("Note: ", sum(is.na(mu.1.s0)), " values extrapolated."))
+			if(!warn.support){print(paste("Note: ", sum(is.na(mu.1.s0)), " values extrapolated."))}
     		c.mat = cbind(s0.new, mu.1.s0)
     		for(o in 1:length(mu.1.s0)) {
     			if(is.na(mu.1.s0[o])){
@@ -121,9 +122,7 @@ delta.s.estimate = function(sone,szero,yone,yzero, weight.perturb = NULL, number
 	return(delta.s)
 }
 
-R.s.estimate = function(sone,szero,yone,yzero, var = FALSE, conf.int = FALSE, weight.perturb = NULL,number = "single", type = "robust", extrapolate = FALSE, transform = FALSE) {
-	warn.te = FALSE
-	warn.support = FALSE
+R.s.estimate = function(sone,szero,yone,yzero, var = FALSE, conf.int = FALSE, weight.perturb = NULL,number = "single", type = "robust", extrapolate = FALSE, transform = FALSE, warn.te = FALSE, warn.support = FALSE) {
 	if(substr(number,1,1) == "s") {number = "single"}
 	if(substr(number,1,1) == "m") {number = "multiple"}
 	if(substr(type,1,1) == "r") {type = "robust"}
@@ -136,14 +135,13 @@ R.s.estimate = function(sone,szero,yone,yzero, var = FALSE, conf.int = FALSE, we
 	}
 	if(number == "single" & dim(as.matrix(sone))[2] > 1) {print("Single setting being used but dimension of surrogate is greater than one; using first surrogate"); sone = as.matrix(sone)[,1]; szero = as.matrix(szero)[,1] }
 	p.test = wilcox.test(x=yone, y=yzero, alternative = "two.sided")$p.value
-	if(p.test > 0.05) {print("Warning: it looks like the treatment effect is not significant; may be difficult to interpret the proportion of treatment effect explained in this setting")
+	if(p.test > 0.05 & !warn.te) {print("Warning: it looks like the treatment effect is not significant; may be difficult to interpret the proportion of treatment effect explained in this setting")
 		warn.te = TRUE}
-	if(mean(yone)-mean(yzero) < 0) {print("Warning: it looks like you need to switch the treatment groups")}
 	if(number == "single" & type == "robust") {
 	range.1 = range(sone)
 	range.0 = range(szero)
 	range.ind = (range.1[1] > range.0[1]) | (range.1[2] < range.0[2])
-	if(range.ind & !extrapolate & !transform) {
+	if(range.ind & !extrapolate & !transform & !warn.support) {
 		print("Warning: observed supports do not appear equal, may need to consider a transformation or extrapolation")
 		warn.support = TRUE
 	}
@@ -170,7 +168,7 @@ R.s.estimate = function(sone,szero,yone,yzero, var = FALSE, conf.int = FALSE, we
 		if(is.null(weight.perturb)) {
 	weight.perturb = matrix(rexp(500*(length(yone)+length(yzero)), rate=1), ncol = 500)}
 		if(type != "freedman"){
-			delta.s.p.vec = apply(weight.perturb, 2, delta.s.estimate, sone=sone, szero=szero, yone = yone, yzero = yzero,number = number, type = type, extrapolate = extrapolate, transform = transform)
+			delta.s.p.vec = apply(weight.perturb, 2, delta.s.estimate, sone=sone, szero=szero, yone = yone, yzero = yzero,number = number, type = type, extrapolate = extrapolate, transform = transform, warn.te = warn.te, warn.support = warn.support)
 			delta.p.vec = as.vector(unlist(apply(weight.perturb, 2, delta.estimate, yone = yone, yzero=yzero, var= FALSE, conf.int = FALSE)))
 			R.p = 1-delta.s.p.vec/delta.p.vec
 		}
@@ -219,12 +217,12 @@ R.s.estimate = function(sone,szero,yone,yzero, var = FALSE, conf.int = FALSE, we
 }
 
 fieller.ci = function(perturb.delta.s, perturb.delta, delta.s, delta) {
-	num = (perturb.delta.s-(delta.s/delta)*perturb.delta)^2
+	num = (as.vector(perturb.delta.s)-as.vector(rep((delta.s/delta), length(perturb.delta)))*as.vector(perturb.delta))^2
 	sigma11 = var(perturb.delta.s)
 	sigma22 = var(perturb.delta)
 	sigma12 = cov(perturb.delta.s, perturb.delta)
 	den = sigma11 - 2*(delta.s/delta)*sigma12 + (delta.s/delta)^2*sigma22
-	c.alpha = quantile(num/den,probs=0.95)
+	c.alpha = quantile(as.vector(num)/as.vector(den),probs=0.95)
 	#quadratic
 	a = delta^2-sigma22*c.alpha
 	b = -2*delta.s*delta + c.alpha*sigma12*2
@@ -286,22 +284,21 @@ censor.weight = function(data.x, data.delta, t, weight=NULL, approx = T) {
 
 
 
-delta.s.surv.estimate = function(xone,xzero, deltaone, deltazero, sone, szero, t, weight.perturb = NULL, landmark, extrapolate = FALSE, transform = FALSE, approx = T) {
+delta.s.surv.estimate = function(xone,xzero, deltaone, deltazero, sone, szero, t, weight.perturb = NULL, landmark, extrapolate = FALSE, transform = FALSE, approx = T, warn.te = FALSE, warn.support = FALSE) {
 	
 	delta.check = delta.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, conf.int = TRUE,approx=approx)
-	if(delta.check$conf.int.quantile[1] < 0 & delta.check$conf.int.quantile[2] > 0 & is.null(weight.perturb)) {print("Warning: it looks like the treatment effect is not significant; may be difficult to interpret the residual treatment effect in this setting")}
-	if(delta.check$delta < 0 & is.null(weight.perturb)) {print("Warning: it looks like you need to switch the treatment groups")}
+	if(delta.check$conf.int.quantile[1] < 0 & delta.check$conf.int.quantile[2] > 0 & is.null(weight.perturb) & !warn.te) {print("Warning: it looks like the treatment effect is not significant; may be difficult to interpret the residual treatment effect in this setting")}
 	range.1 = range(sone, na.rm = T)
 	range.0 = range(szero, na.rm = T)
 	range.ind = (range.1[1] > range.0[1]) & (range.1[2] < range.0[2])
-	if( range.ind & is.null(weight.perturb)) {
+	if( range.ind & is.null(weight.perturb) & !warn.support) {
 		print("Warning: observed supports to not appear equal, may need to consider a transformation or extrapolation")
 	}
 	if(is.null(weight.perturb)) {weight = rep(1,length(xone)+length(xzero))}
 	if(!is.null(weight.perturb)) {weight = weight.perturb}	
 	weight.group1 = weight[1:length(xone)]
 	weight.group0 = weight[(1+length(xone)):(length(xone)+length(xzero))]
-	mu.1.s0 = pred.smooth.surv(xone.f=xone[xone>landmark], deltaone.f = deltaone[xone>landmark], sone.f=sone[xone>landmark], szero.one = szero[xzero>landmark], myt=t, weight.pred = weight.group1[xone>landmark], extrapolate = extrapolate, transform = transform)
+	mu.1.s0 = pred.smooth.surv(xone.f=xone[xone>landmark], deltaone.f = deltaone[xone>landmark], sone.f=sone[xone>landmark], szero.one = szero[xzero>landmark], myt=t, weight.pred = weight.group1[xone>landmark], extrapolate = extrapolate, transform = transform, warn.support = warn.support)
 	censor0.t = censor.weight(xzero, deltazero, t, weight = weight.group0, approx=approx)
 	censor0.landmark = censor.weight(xzero, deltazero, landmark, weight = weight.group0, approx=approx)
 	delta.s = sum(weight.group0[xzero>landmark]*mu.1.s0)/sum(weight.group0*censor0.landmark) - sum(weight.group0*1*(xzero>t))/sum(weight.group0*censor0.t)
@@ -320,8 +317,7 @@ R.s.surv.estimate = function(xone,xzero, deltaone, deltazero, sone, szero, t, we
 		if(is.null(weight.perturb)) {
 			
 	weight.perturb = matrix(rexp(500*(length(xone)+length(xzero)), rate=1), ncol = 500)}
-		delta.s.p.vec = apply(weight.perturb, 2, delta.s.surv.estimate, xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, sone=sone, szero=szero, t=t, landmark=landmark, extrapolate = extrapolate, transform = transform,approx=approx)
-		print(weight.perturb[1:10, 1:10])
+		delta.s.p.vec = apply(weight.perturb, 2, delta.s.surv.estimate, xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, sone=sone, szero=szero, t=t, landmark=landmark, extrapolate = extrapolate, transform = transform,approx=approx, warn.te = TRUE, warn.support = TRUE)
 		delta.p.vec = as.vector(unlist(apply(weight.perturb, 2, delta.surv.estimate, xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, var= FALSE, conf.int = FALSE,approx=approx)))
 		R.p = 1-delta.s.p.vec/delta.p.vec
 		if(conf.int)	{
@@ -392,7 +388,6 @@ R.s.surv.estimate = function(xone,xzero, deltaone, deltazero, sone, szero, t, we
  delta.t.surv.estimate = function(xone,xzero, deltaone, deltazero, t, weight.perturb = NULL, landmark, approx = T) {
  		delta.check = delta.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, conf.int = TRUE,approx=approx)
 	if(delta.check$conf.int.quantile[1] < 0 & delta.check$conf.int.quantile[2] > 0) {print("Warning: it looks like the treatment effect is not significant; may be difficult to interpret the residual treatment effect in this setting")}
-	if(delta.check$delta < 0) {print("Warning: it looks like you need to switch the treatment groups")}
 	if(is.null(weight.perturb)) {weight = rep(1,length(xone)+length(xzero))}
 	if(!is.null(weight.perturb)) {weight = weight.perturb}	
 	weight.group1 = weight[1:length(xone)]
@@ -445,7 +440,7 @@ R.t.surv.estimate = function(xone,xzero, deltaone, deltazero, t, weight.perturb 
 
 
 
-pred.smooth.surv <- function(xone.f, deltaone.f, sone.f, szero.one, myt, weight.pred, extrapolate, transform, ps.weight = NULL)
+pred.smooth.surv <- function(xone.f, deltaone.f, sone.f, szero.one, myt, weight.pred, extrapolate, transform, ps.weight = NULL, warn.support = FALSE)
   { 
     if(transform){	 	
     	mean.o= mean(c(sone.f, szero.one))
@@ -467,7 +462,7 @@ pred.smooth.surv <- function(xone.f, deltaone.f, sone.f, szero.one, myt, weight.
     ret = apply(dLamhat.tj.ss,2,sum)
     Phat.ss  =exp(-ret)
     if(sum(is.na(Phat.ss))>0 & extrapolate){
-    	print(paste("Note: ", sum(is.na(Phat.ss)), " values extrapolated."))
+    	if(!warn.support) {print(paste("Note: ", sum(is.na(Phat.ss)), " values extrapolated."))}
     	c.mat = cbind(szero.one, Phat.ss)
     	for(o in 1:length(Phat.ss)) {
     		if(is.na(Phat.ss[o])){
@@ -529,8 +524,6 @@ perturb.nu.vector = function(mat, weights) {
 
 
 Aug.R.s.surv.estimate = function(xone,xzero, deltaone, deltazero, sone, szero, t, weight.perturb = NULL, landmark, extrapolate = FALSE, transform = FALSE, basis.delta.one, basis.delta.zero,basis.delta.s.one = NULL, basis.delta.s.zero = NULL, incremental.value = FALSE, approx = T) {
-	if(is.null(basis.delta.s.one)) {basis.delta.s.one = basis.delta.one}
-	if(is.null(basis.delta.s.zero)) {basis.delta.s.zero = basis.delta.zero}
 	delta = delta.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t,approx=approx)$delta	
 	delta.s = delta.s.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, sone=sone, szero=szero, t=t, landmark=landmark, extrapolate = extrapolate, transform = transform,approx=approx)
 	R.s = 1-delta.s/delta	
@@ -541,10 +534,10 @@ Aug.R.s.surv.estimate = function(xone,xzero, deltaone, deltazero, sone, szero, t
 	R.p = 1-delta.s.p.vec/delta.p.vec
 	
 	#Augmented estimators
-	if(dim(as.matrix(basis.delta.s.one))[2] == 1 ) {basis.delta.s.use =  rbind(cbind(basis.delta.s.one,basis.delta.s.one^2), cbind(basis.delta.s.zero, basis.delta.s.zero^2))}
-	if(dim(as.matrix(basis.delta.s.one))[2] > 1 ) {basis.delta.s.use = rbind(basis.delta.s.one, basis.delta.s.zero) }
 	if(dim(as.matrix(basis.delta.one))[2] == 1 ) {basis.delta.use =  rbind(cbind(basis.delta.one, basis.delta.one^2), cbind(basis.delta.zero, basis.delta.zero^2))}
 	if(dim(as.matrix(basis.delta.one))[2] > 1 ) {basis.delta.use = rbind(basis.delta.one, basis.delta.zero) }
+	basis.delta.s.use = basis.delta.use
+	if(!is.null(basis.delta.s.one) | !is.null(basis.delta.s.zero)) {print("Note: basis.delta.s has been set to be equal to basis.delta.")}
 	treat.vector = c(rep(1, length(xone)), rep(0,length(xzero)))
 	aug.delta.total = augment.est.vector(point.delta=delta, perturb.delta = delta.p.vec, treat.ind = treat.vector, basis = basis.delta.use, weights = weight.perturb) 
 	aug.delta = aug.delta.total$aug.estimate
@@ -614,7 +607,7 @@ fieller.calculate.me = function(a, B, var.mat){
 }
 
 R.s.estimate.me = function(sone,szero,yone,yzero,parametric = FALSE, estimator = "n", me.variance, extrapolate = TRUE, transform = FALSE, naive = FALSE, Ronly = TRUE) {
-	if(!(substr(estimator, 1,1) %in% c("d", "q", "n"))) {print("Warning: Invalid estimator, default `nonlinear' being used"); estimator = "n"}
+	if(!(estimator %in% c("d", "q", "n"))) {print("Warning: Invalid estimator, default `nonlinear' being used"); estimator = "n"}
 	if(!parametric & estimator == "d") {print("Warning: Invalid estimator, there is no disattentuated estimator for nonparametric approach; default `nonlinear' being used"); estimator = "n"}
 	outcome.vec = c(yone, yzero)
 	treat.vec = c(rep(1,length(yone)),rep(0,length(yzero)))
@@ -871,7 +864,7 @@ R.s.estimate.me = function(sone,szero,yone,yzero,parametric = FALSE, estimator =
 			mat.for.C.ee2 = matrix(nrow = length(outcome.vec), ncol = n.pseudo)
 		for(j in 1:50)	{
 			pseudo.vals = s.vec+sqrt(lambda.vec[k])*sqrt(me.variance)*pe[,j]
-			R.pseudo[k,j] = R.s.estimate(sone = pseudo.vals[treat.vec==1], szero = pseudo.vals[treat.vec==0], yone = outcome.vec[treat.vec==1], yzero = outcome.vec[treat.vec==0], type = "robust", extrapolate = extrapolate, transform=transform)$delta.s
+			R.pseudo[k,j] = R.s.estimate(sone = pseudo.vals[treat.vec==1], szero = pseudo.vals[treat.vec==0], yone = outcome.vec[treat.vec==1], yzero = outcome.vec[treat.vec==0], type = "robust", extrapolate = extrapolate, transform=transform, warn.te = TRUE, warn.support = TRUE)$delta.s
 			psi.hold = calculate.var.np(s1 = pseudo.vals[treat.vec==1],s0=pseudo.vals[treat.vec==0],y1 = outcome.vec[treat.vec==1],y0 = outcome.vec[treat.vec==0])$psionly 
 			mat.for.C.ee1[,j] = t(psi.hold[1,])
 			mat.for.C.ee2[,j] = t(psi.hold[2,])
@@ -1032,7 +1025,7 @@ calculate.var.np = function(s1,s0,y1,y0, extrapolate = TRUE) {
 	}
 
 mean0 = mean(y0)
-rr.temp = R.s.estimate(sone = s1, szero = s0, yone = y1, yzero = y0, type = "robust", extrapolate = TRUE)
+rr.temp = R.s.estimate(sone = s1, szero = s0, yone = y1, yzero = y0, type = "robust", extrapolate = TRUE, warn.te = TRUE, warn.support = TRUE)
 first.term.deltas = rr.temp$delta.s + mean0
 for(ww in 1:length(y0)) {
 dat.vec = y0
@@ -1136,7 +1129,6 @@ delta.multiple.surv = function(xone,xzero, deltaone, deltazero, sone, szero, typ
 	
 	delta.check = delta.surv.estimate(xone=xone,xzero=xzero, deltaone=deltaone, deltazero=deltazero, t=t, conf.int = TRUE,approx=approx)
 	if(delta.check$conf.int.quantile[1] < 0 & delta.check$conf.int.quantile[2] > 0 & is.null(weight.perturb)) {print("Warning: it looks like the treatment effect is not significant; may be difficult to interpret the residual treatment effect in this setting")}
-	if(delta.check$delta < 0 & is.null(weight.perturb)) {print("Warning: it looks like you need to switch the treatment groups")}
 	if(is.null(weight.perturb)) {weight = rep(1,length(xone)+length(xzero))}
 	if(!is.null(weight.perturb)) {weight = weight.perturb}	
 	weight.group1 = weight[1:length(xone)]

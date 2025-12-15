@@ -14,19 +14,19 @@ calculate.var.np(s1, s0, y1, y0, extrapolate = TRUE)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
-  \item{sone}{
+  \item{s1}{
 %%     ~~Describe \code{yone} here~~
 numeric vector or matrix; surrogate marker for treated observations, assumed to be continuous. If there are multiple surrogates then this should be a matrix with \eqn{n_1} (number of treated observations) rows and n.s (number of surrogate markers) columns.
 }
-  \item{szero}{
+  \item{s0}{
 %%     ~~Describe \code{yzero} here~~
 numeric vector; surrogate marker for control observations, assumed to be continuous.If there are multiple surrogates then this should be a matrix with \eqn{n_0} (number of control observations) rows and n.s (number of surrogate markers) columns. 
 }
-  \item{yone}{
+  \item{y1}{
 %%     ~~Describe \code{yone} here~~
 numeric vector; primary outcome for treated observations, assumed to be continuous.
 }
-  \item{yzero}{
+  \item{y0}{
 %%     ~~Describe \code{yzero} here~~
 numeric vector; primary outcome for control observations, assumed to be continuous.
 }
@@ -46,8 +46,7 @@ TRUE or FALSE; indicates whether the user wants to use extrapolation.
 %% ~put references to the literature/web site here ~
 Parast, L., McDermott, M., Tian, L. (2016). Robust estimation of the proportion of treatment effect explained by surrogate marker information. Statistics in Medicine, 35(10):1637-1653.
 
-Parast, L., Garcia, TP, Prentice, RL, Carroll, RJ (2021). Robust Methods to Correct for Measurement Error when Evaluating a Surrogate Marker. Biometrics, In press.
-
+Parast, L., Garcia, T. P., Prentice, R. L., & Carroll, R. J. (2022). Robust methods to correct for measurement error when evaluating a surrogate marker. Biometrics, 78(1), 9-23.
 }
 \author{
 %%  ~~who you are~~

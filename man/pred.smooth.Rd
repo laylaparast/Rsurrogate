@@ -16,11 +16,11 @@ pred.smooth(zz, zi.one, bw = NULL, y1, weight = NULL)
 \arguments{
   \item{zz}{
 %%     ~~Describe \code{zz} here~~
-surrogate values in the control group
+surrogate values in the treatment group; used to estimate conditional mean function
 }
   \item{zi.one}{
 %%     ~~Describe \code{zi.one} here~~
-surrogate values in the treatment group; used to estimate conditional mean function
+surrogate values in the control group
 }
   \item{bw}{
 %%     ~~Describe \code{bw} here~~
