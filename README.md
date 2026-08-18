@@ -17,3 +17,7 @@ More details on the method are available in:
 A full written tutorial is available in Parast L (2025). Surrogate Marker Evaluation: A Tutorial Using R. Statistics in Medicine, 44(10-12):e70048. [10.1002/sim.70048](https://doi.org/10.1002/sim.70048) 
 with a follow-up along R markdown available [here](https://github.com/laylaparast/SIMtutorial), and the knitted html [here](https://htmlpreview.github.io/?https://github.com/laylaparast/SIMtutorial/blob/main/Parast_SIM_tutorial.html).
 The Parast (2025) tutorial paper is available in this respository, it is called Parast2025_Tutorial.pdf.
+
+This package also contains a function for surrogate selection proposed in Parast, Freestone, and Tarr (2026). Treatment-Aware Regularization via Multi-Objective
+Optimization for Surrogate Selection. Code and instructions to reproduce the simulations results in the paper are available at [https://github.com/laylaparast/TAR](https://github.com/laylaparast/TAR).
+
