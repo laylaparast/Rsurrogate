@@ -19,5 +19,5 @@ with a follow-up along R markdown available [here](https://github.com/laylaparas
 The Parast (2025) tutorial paper is available in this respository, it is called Parast2025_Tutorial.pdf.
 
 This package also contains a function for surrogate selection proposed in Parast, Freestone, and Tarr (2026). Treatment-Aware Regularization via Multi-Objective
-Optimization for Surrogate Selection. Code and instructions to reproduce the simulations results in the paper are available at [https://github.com/laylaparast/TAR](https://github.com/laylaparast/TAR).
+Optimization for Surrogate Selection. A tutorial for the function implementing the methods in this paper, as well as code and instructions to reproduce the simulations results in the paper are available at [https://github.com/laylaparast/TAR](https://github.com/laylaparast/TAR).
 
