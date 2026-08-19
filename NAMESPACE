@@ -1,5 +1,6 @@
-importFrom(stats, bw.nrd, cov, dnorm, lm, quantile, rexp, sd, var, wilcox.test, pnorm, approx, qnorm, rnorm, vcov, nls, nls.control, density, glm, predict, binomial)
+importFrom(stats, bw.nrd, cov, dnorm, lm, quantile, rexp, sd, var, wilcox.test, pnorm, approx, qnorm, rnorm, vcov, nls, nls.control, density, glm, predict, binomial, coef)
 importFrom(survival, survfit, Surv, coxph, basehaz)
 importFrom(Matrix, bdiag)
+importFrom(glmnet, glmnet, cv.glmnet)
 
 exportPattern("^[[:alpha:]]+")
