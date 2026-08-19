@@ -1264,3 +1264,349 @@ delta.multiple.surv = function(xone,xzero, deltaone, deltazero, sone, szero, typ
 	return(delta.s)
 }
 
+########################################################################
+## Treatment-aware regularization (TAR) additions. select.surrogate() is
+## the main user-facing function; the rest are internal (names begin with
+## a period so that they are not exported).
+########################################################################
+
+.te.calculate = function(s, treat, control) {
+	mean_diff <- mean(treat[[s]]) - mean(control[[s]])
+	pooled_sd <- sqrt((var(treat[[s]]) + var(control[[s]])) / 2)
+	return(abs(mean_diff / pooled_sd))
+}
+
+.debias_ols <- function(original_coefs, data_train) {
+	nonzero_coefs <- original_coefs[original_coefs != 0]
+	selected_cols <- c(names(nonzero_coefs))
+	X_selected <- as.matrix(data_train[, selected_cols])
+	X_selected <- cbind(Intercept = 1, X_selected)
+	if (ncol(X_selected) >= nrow(X_selected)) {
+		debias_coef <- matrix(NA_real_, nrow = ncol(X_selected), ncol = 1)
+		rownames(debias_coef) <- c("Intercept", selected_cols)
+		return(debias_coef)
+	}
+	debias_coef <- as.matrix(qr.solve(X_selected, data_train$y))
+	rownames(debias_coef)[-1] = selected_cols
+	return(debias_coef)
+}
+
+.debias_pred = function(debias_coef, data_val) {
+	preds = as.matrix(data_val[ , match(rownames(debias_coef), names(data_val)) ])%*%as.matrix(debias_coef)
+	return(preds)
+}
+
+.debias_p = function(debias_coef, penalty) {
+	noint = debias_coef[-1]
+	return(sum(noint != 0 ))
+}
+
+.debias_deltas = function(debias_coef, data_val, control_data) {
+	debias_coef_subset = debias_coef[-1, , drop = FALSE]
+	debias_coef_subset_vec = as.vector(debias_coef_subset)
+	names(debias_coef_subset_vec) = rownames(debias_coef_subset)
+	if (any(is.na(debias_coef_subset_vec))) return(NA_real_)
+	return(.make.delta.s(debias_coef_subset_vec, control = control_data, treat = data_val))
+}
+
+.make.delta.s <- function(coefs_vec, treat, control) {
+	if (length(coefs_vec) == 0) {
+		return(mean(treat$y) - mean(control$y))
+	} else {
+		selected_surrogates <- names(coefs_vec)
+		control.surrogates <- as.matrix(control[, selected_surrogates, drop = FALSE])
+		treat.surrogates <- as.matrix(treat[, selected_surrogates, drop = FALSE])
+		y.treat <- treat$y
+
+		s.tilde.0 <- control.surrogates %*% coefs_vec
+		s.tilde.1 <- treat.surrogates %*% coefs_vec
+
+		mu.1.s0 <- vapply(s.tilde.0, pred.smooth, FUN.VALUE = numeric(1), zz = s.tilde.1, y1 = y.treat)
+		if (sum(is.na(mu.1.s0)) > 0) {
+			c.mat = cbind(s.tilde.0, mu.1.s0)
+			for (o in 1:length(mu.1.s0)) {
+				if (is.na(mu.1.s0[o])) {
+					distance = abs(s.tilde.0 - s.tilde.0[o])
+					c.temp = cbind(c.mat, distance)
+					c.temp = c.temp[!is.na(c.temp[, 2]), ]
+					new.est = c.temp[c.temp[, 3] == min(c.temp[, 3]), 2]
+					mu.1.s0[o] = new.est[1]
+				}
+			}
+		}
+		return(mean(mu.1.s0) - mean(control$y))
+	}
+}
+
+## Bootstrap SE and 95% percentile CI for delta, delta.s, and the PTE
+## (R.s), resampling both arms with replacement and rerunning fit_once()
+## on each resample.
+.bootstrap_var <- function(data, fit_once, boot.num) {
+	control <- data[data$treat == 0, ]
+	treat   <- data[data$treat == 1, ]
+
+	boot_results <- vector("list", boot.num)
+	for (b in seq_len(boot.num)) {
+		control_b <- control[sample(nrow(control), nrow(control), replace = TRUE), ]
+		treat_b   <- treat[sample(nrow(treat), nrow(treat), replace = TRUE), ]
+		dat_b <- rbind(treat_b, control_b)
+		boot_results[[b]] <- tryCatch(fit_once(dat_b),
+			error = function(e) list(delta = NA_real_, delta.s = NA_real_, pte = NA_real_))
+	}
+
+	boot_delta   <- vapply(boot_results, function(r) r$delta,   numeric(1))
+	boot_delta.s <- vapply(boot_results, function(r) r$delta.s, numeric(1))
+	boot_R.s     <- vapply(boot_results, function(r) r$pte,     numeric(1))
+
+	list(
+		delta_se     = sd(boot_delta,   na.rm = TRUE),
+		delta_ci     = unname(quantile(boot_delta,   c(.025, .975), na.rm = TRUE)),
+		delta.s_se   = sd(boot_delta.s, na.rm = TRUE),
+		delta.s_ci   = unname(quantile(boot_delta.s, c(.025, .975), na.rm = TRUE)),
+		R.s_se       = sd(boot_R.s,     na.rm = TRUE),
+		R.s_ci       = unname(quantile(boot_R.s,     c(.025, .975), na.rm = TRUE)),
+		boot.num     = boot.num
+	)
+}
+
+## selection = "none": no selection, all candidates used. Thin wrapper
+## around R.s.estimate().
+.full.surrogate.approach <- function(data, surrogate_names, var = FALSE, boot.num = 200) {
+	fit_once <- function(dat) {
+		r <- tryCatch({
+			R.s.estimate(yone = dat$y[dat$treat == 1], yzero = dat$y[dat$treat == 0],
+									 sone = as.matrix(dat[dat$treat == 1, surrogate_names]),
+									 szero = as.matrix(dat[dat$treat == 0, surrogate_names]),
+									 number = "multiple", extrapolate = TRUE, warn.te = TRUE, warn.support = TRUE)
+		}, error = function(e) e)
+		if (inherits(r, "error")) {
+			return(list(delta = NA_real_, delta.s = NA_real_, pte = NA_real_))
+		}
+		list(delta = r$delta, delta.s = r$delta.s, pte = r$R.s)
+	}
+
+	point <- fit_once(data)
+	point$var <- if (var) .bootstrap_var(data, fit_once, boot.num) else NULL
+	point
+}
+
+## selection = "rr": unweighted cross-validated lasso, debiased refit.
+.smoothed.regularized = function(data, surrogate_names, nlambda = 20, lambda_rule = "lambda.1se",
+																 var = FALSE, boot.num = 200) {
+	fit_once <- function(dat) {
+		y.treat <- dat$y[dat$treat == 1]
+		X.treat <- dat[dat$treat == 1, setdiff(names(dat), "y")]
+		X.treat <- as.matrix(X.treat[, setdiff(names(X.treat), "treat")])
+
+		mean1 <- mean(dat$y[dat$treat == 1])
+		mean0 <- mean(dat$y[dat$treat == 0])
+		delta <- mean1 - mean0
+
+		cvfit <- cv.glmnet(X.treat, y.treat, alpha = 1, nlambda = nlambda)
+		coefs <- coef(cvfit, s = lambda_rule)
+		coefs_vec <- as.vector(coefs)
+		names(coefs_vec) <- rownames(coefs)
+
+		nonzero_coefs <- coefs_vec[coefs_vec != 0]
+		nonzero_coefs <- nonzero_coefs[names(nonzero_coefs) != "(Intercept)"]
+
+		selected_cols <- c(names(nonzero_coefs))
+		data.treat <- dat[dat$treat == 1, ]
+		X_selected <- as.matrix(data.treat[, selected_cols])
+		X_selected <- cbind(Intercept = 1, X_selected)
+		if (ncol(X_selected) >= nrow(X_selected)) {
+			return(list(selection = nonzero_coefs, delta = delta, delta.s = NA_real_, pte = NA_real_))
+		}
+		debias_coef <- as.matrix(qr.solve(X_selected, data.treat$y))
+		debias_coef <- debias_coef[-1]
+		names(debias_coef) <- selected_cols
+		delta.s <- .make.delta.s(coefs_vec = debias_coef, treat = dat[dat$treat == 1, ], control = dat[dat$treat == 0, ])
+
+		list(selection = nonzero_coefs, delta = delta, delta.s = delta.s, pte = 1 - delta.s / delta)
+	}
+
+	point <- fit_once(data)
+	point$var <- if (var) .bootstrap_var(data, fit_once, boot.num) else NULL
+	point
+}
+
+## selection = "TAR": weighted lasso (weights favor markers with a larger
+## treatment effect), penalty selected via CV within the treated group.
+.tar.approach = function(data, folds = 5, epsilon = 0.05, nlambda = 20, surrogate_names, c.constant = 1, small.n = 1e-6,
+												 var = FALSE, boot.num = 200) {
+
+	fit_once <- function(dat) {
+		control <- dat[dat$treat == 0, ]
+		treat <- dat[dat$treat == 1, ]
+
+		treatment_effect_magnitude <- sapply(surrogate_names, .te.calculate, treat = treat, control = control)
+		penalty_factors <- (1 / (treatment_effect_magnitude + small.n))^c.constant
+		penalty_factors <- penalty_factors / mean(penalty_factors)
+		names(penalty_factors) <- surrogate_names
+		penalty_factors_fulldata <- penalty_factors
+
+		y.treat <- treat$y
+		X.treat <- treat[setdiff(names(treat), c("y", "treat"))]
+		cvfit_fulldata <- glmnet(as.matrix(X.treat), y.treat, alpha = 1, penalty.factor = penalty_factors_fulldata[colnames(X.treat)], nlambda = nlambda)
+		lambda.grid <- cvfit_fulldata$lambda
+
+		optim.matrix <- matrix(nrow = length(lambda.grid), ncol = 4)
+		optim.matrix[, 1] <- lambda.grid
+		mse.mat <- matrix(nrow = length(lambda.grid), ncol = folds)
+		sparse.mat <- matrix(nrow = length(lambda.grid), ncol = folds)
+		residuals.mat <- matrix(nrow = length(lambda.grid), ncol = folds)
+
+		n1_total <- sum(dat$treat == 1)
+		fold.id <- sample(rep(1:folds, length.out = n1_total))
+
+		for (uu in 1:folds) {
+			ind.cv <- as.integer(fold.id != uu)
+			sub.treat <- treat[ind.cv == 1, ]
+			treatment_effect_magnitude <- sapply(surrogate_names, .te.calculate, treat = sub.treat, control = control)
+
+			penalty_factors <- (1 / (treatment_effect_magnitude + small.n))^c.constant
+			penalty_factors <- penalty_factors / mean(penalty_factors)
+			names(penalty_factors) <- surrogate_names
+
+			y.treat <- sub.treat$y
+			X.treat <- sub.treat[setdiff(names(sub.treat), c("y", "treat"))]
+
+			cvfit <- glmnet(as.matrix(X.treat), y.treat, alpha = 1, penalty.factor = penalty_factors[colnames(X.treat)], lambda = lambda.grid)
+
+			sub.treat.val <- treat[ind.cv == 0, ]
+			y.treat.val <- sub.treat.val$y
+			X.treat.val <- sub.treat.val[setdiff(names(sub.treat.val), c("y", "treat"))]
+
+			coefs_all <- coef(cvfit, cvfit$lambda)[-1, ]
+			result_list <- lapply(seq_len(ncol(coefs_all)), function(j) {
+				column <- coefs_all[, j]
+				.debias_ols(column, data_train = sub.treat)
+			})
+
+			debias_predictions <- sapply(result_list, .debias_pred, data_val = cbind(Intercept = 1, X.treat.val))
+			mse.mat[, uu] <- length(y.treat.val)^(-1) * apply(as.matrix((debias_predictions - y.treat.val)^2), 2, sum)
+			sparse.mat[, uu] <- sapply(result_list, .debias_p)
+			residuals.mat[, uu] <- vapply(result_list, .debias_deltas, FUN.VALUE = numeric(1), data_val = sub.treat.val, control_data = control)
+		}
+
+		optim.matrix[, 2] <- apply(mse.mat, 1, mean, na.rm = TRUE)
+		optim.matrix[, 3] <- apply(sparse.mat, 1, mean, na.rm = TRUE)
+		optim.matrix[, 4] <- apply(residuals.mat, 1, mean, na.rm = TRUE)
+
+		# threshold = delta.s + epsilon*delta, from the full-candidate model
+		rr_attempt <- tryCatch({
+			R.s.estimate(yone = dat$y[dat$treat == 1], yzero = dat$y[dat$treat == 0],
+									 sone = as.matrix(dat[dat$treat == 1, names(dat) %in% surrogate_names]),
+									 szero = as.matrix(dat[dat$treat == 0, names(dat) %in% surrogate_names]),
+									 number = "multiple", extrapolate = TRUE, warn.te = TRUE, warn.support = TRUE)
+		}, error = function(e) e)
+
+		if (!inherits(rr_attempt, "error")) {
+			threshold <- rr_attempt$delta.s + epsilon * rr_attempt$delta
+		} else {
+			delta_full <- mean(treat$y) - mean(control$y)
+			coefs_full_path <- coef(cvfit_fulldata, cvfit_fulldata$lambda)[-1, , drop = FALSE]
+			delta_s_proxy <- NA_real_
+			for (jcol in rev(seq_len(ncol(coefs_full_path)))) {
+				dc <- .debias_ols(coefs_full_path[, jcol], data_train = treat)
+				dc_subset <- dc[-1, , drop = FALSE]
+				dc_vec <- as.vector(dc_subset)
+				names(dc_vec) <- rownames(dc_subset)
+				if (!any(is.na(dc_vec))) {
+					delta_s_proxy <- .make.delta.s(dc_vec, treat = treat, control = control)
+					break
+				}
+			}
+			if (is.na(delta_s_proxy)) delta_s_proxy <- delta_full
+			threshold <- delta_s_proxy + epsilon * delta_full
+		}
+
+		feasible <- !is.na(optim.matrix[, 4]) & (optim.matrix[, 4] <= threshold)
+		n_feasible <- sum(feasible)
+
+		if (n_feasible == 0) {
+			optimal.lambda <- 0
+		}
+		if (n_feasible == 1) {
+			optim.temp <- optim.matrix[feasible, , drop = FALSE]
+			optimal.lambda <- optim.temp[1, 1]
+		}
+		if (n_feasible > 1) {
+			optim.matrix.f <- optim.matrix[feasible, , drop = FALSE]
+			optimal.lambda <- optim.matrix.f[which.min(optim.matrix.f[, 3]), 1]
+		}
+
+		y.treat <- treat$y
+		X.treat <- treat[setdiff(names(treat), c("y", "treat"))]
+		cvfit <- glmnet(as.matrix(X.treat), y.treat, alpha = 1, penalty.factor = penalty_factors_fulldata[colnames(X.treat)], lambda = optimal.lambda)
+		coefs <- coef(cvfit, optimal.lambda)[-1, ]
+		coefs_vec <- as.vector(coefs)
+		names(coefs_vec) <- names(coefs)
+		nonzero_coefs <- coefs_vec[coefs_vec != 0]
+		selected_cols <- c(names(nonzero_coefs))
+		X_selected <- as.matrix(treat[, selected_cols])
+		X_selected <- cbind(Intercept = 1, X_selected)
+		delta <- mean(treat$y) - mean(control$y)
+		if (ncol(X_selected) >= nrow(X_selected)) {
+			return(list(selection = nonzero_coefs, delta = delta, delta.s = NA_real_, pte = NA_real_))
+		}
+		debias_coef <- as.matrix(qr.solve(X_selected, treat$y))
+		rownames(debias_coef)[-1] <- selected_cols
+		debias_coef_subset <- debias_coef[-1, , drop = FALSE]
+		debias_coef_subset_vec <- as.vector(debias_coef_subset)
+		names(debias_coef_subset_vec) <- rownames(debias_coef_subset)
+		delta.s <- .make.delta.s(debias_coef_subset_vec, control = control, treat = treat)
+		list(selection = nonzero_coefs, delta = delta, delta.s = delta.s, pte = 1 - delta.s / delta)
+	}
+
+	point <- fit_once(data)
+	point$var <- if (var) .bootstrap_var(data, fit_once, boot.num) else NULL
+	point
+}
+
+select.surrogate <- function(sone, szero, yone, yzero, selection = "none",
+															var = FALSE, boot.num = 200,
+															nlambda = 20, folds = 5, epsilon = 0.05,
+															c.constant = 1, small.n = 1e-6, lambda_rule = "lambda.1se") {
+
+	if(substr(selection,1,1) %in% c("n","N")) {selection = "none"}
+	if(substr(selection,1,1) %in% c("t","T")) {selection = "TAR"}
+	if(substr(selection,1,1) %in% c("r","R")) {selection = "rr"}
+
+	sone <- as.matrix(sone)
+	szero <- as.matrix(szero)
+	if(is.null(colnames(sone))) {colnames(sone) <- paste0("s", 1:ncol(sone))}
+	colnames(szero) <- colnames(sone)
+	surrogate_names <- colnames(sone)
+
+	dat <- as.data.frame(rbind(sone, szero))
+	names(dat) <- surrogate_names
+	dat$y <- c(yone, yzero)
+	dat$treat <- c(rep(1, length(yone)), rep(0, length(yzero)))
+
+	if(selection == "none") {
+		fit <- .full.surrogate.approach(data = dat, surrogate_names = surrogate_names, var = var, boot.num = boot.num)
+	}
+	if(selection == "TAR") {
+		fit <- .tar.approach(data = dat, surrogate_names = surrogate_names, folds = folds, epsilon = epsilon,
+												 nlambda = nlambda, c.constant = c.constant, small.n = small.n,
+												 var = var, boot.num = boot.num)
+	}
+	if(selection == "rr") {
+		fit <- .smoothed.regularized(data = dat, surrogate_names = surrogate_names, nlambda = nlambda,
+																 lambda_rule = lambda_rule, var = var, boot.num = boot.num)
+	}
+
+	out <- list(delta = fit$delta, delta.s = fit$delta.s, R.s = fit$pte)
+	if(!is.null(fit$selection)) {out$selection <- fit$selection}
+	if(var) {
+		out$delta.var <- fit$var$delta_se^2
+		out$delta.s.var <- fit$var$delta.s_se^2
+		out$R.s.var <- fit$var$R.s_se^2
+		out$conf.int.delta <- as.vector(fit$var$delta_ci)
+		out$conf.int.delta.s <- as.vector(fit$var$delta.s_ci)
+		out$conf.int.R.s <- as.vector(fit$var$R.s_ci)
+	}
+	return(out)
+}
+

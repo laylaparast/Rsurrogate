@@ -1,9 +1,14 @@
 Package: Rsurrogate
 Type: Package
 Title: Robust Estimation of the Proportion of Treatment Effect Explained by Surrogate Marker Information
-Version: 3.2
-Author: Layla Parast
+Version: 3.3
+Authors@R: c(person("Layla", "Parast", role = c("aut", "cre"), email = "parast@austin.utexas.edu"))
 Maintainer: Layla Parast <parast@austin.utexas.edu>
-Description: Provides functions to estimate the proportion of treatment effect on the primary outcome that is explained by the treatment effect on the surrogate marker. 
+Description: Provides functions to estimate the proportion of treatment effect on the primary outcome that is explained by the treatment effect on the surrogate marker. A tutorial for this package can be found at
+  <https://github.com/laylaparast/Rsurrogate> and a Shiny App 
+  implementing the package can be found at 
+  <https://parastlab.shinyapps.io/RSurrogateApp/>.
 License: GPL
-Imports: stats, survival, Matrix
+Imports: stats, survival, Matrix, glmnet
+
+
